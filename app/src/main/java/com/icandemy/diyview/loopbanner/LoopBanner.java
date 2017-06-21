@@ -3,6 +3,9 @@ package com.icandemy.diyview.loopbanner;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Message;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.ViewDragHelper;
 import android.util.AttributeSet;
@@ -23,7 +26,6 @@ import java.util.LinkedList;
  */
 
 public class LoopBanner extends ViewGroup {
-    private ImageView imageView0, imageView1, imageView2;
     private int layoutWidth;
     private ViewDragHelper viewDragHelper;
     private Context context;
@@ -49,13 +51,13 @@ public class LoopBanner extends ViewGroup {
 
         scroller = new Scroller(context);
 
-        imageView0 = new ImageView(context);
+        ImageView imageView0 = new ImageView(context);
         imageView0.setBackgroundColor(Color.RED);
         imageView0.setImageDrawable(ContextCompat.getDrawable(context, R.mipmap.a0001));
-        imageView1 = new ImageView(context);
+        ImageView imageView1 = new ImageView(context);
         imageView1.setBackgroundColor(Color.YELLOW);
         imageView1.setImageDrawable(ContextCompat.getDrawable(context, R.mipmap.a0002));
-        imageView2 = new ImageView(context);
+        ImageView imageView2 = new ImageView(context);
         imageView2.setBackgroundColor(Color.BLUE);
         imageView2.setImageDrawable(ContextCompat.getDrawable(context, R.mipmap.a0003));
 
@@ -67,8 +69,8 @@ public class LoopBanner extends ViewGroup {
         childViewOrder.add(1);
         childViewOrder.add(2);
 
+        autoLoop();
 
-//        viewDrag();
     }
 
     @Override
@@ -113,219 +115,67 @@ public class LoopBanner extends ViewGroup {
         super.onDraw(canvas);
     }
 
-    private void viewDrag() {
-        scrollTo(300, 0);
-        viewDragHelper = ViewDragHelper.create(this, 1.0f, new ViewDragHelper.Callback() {
-            /**
-             * 手指点击的imageview
-             */
-            int position;
-            /**
-             * 除手指点击的其他两个imageview
-             */
-            int other1, other2;
-            /**
-             * 处于最左侧的imageview的标号
-             */
-            int pos = 0;
-            boolean autoScroll;
-
-
-            @Override
-            public boolean tryCaptureView(View child, int pointerId) {
-                autoScroll = false;
-                if (child == getChildAt(0)) {
-                    position = 0;
-                    other1 = 1;
-                    other2 = 2;
-                } else if (child == getChildAt(1)) {
-                    position = 1;
-                    other1 = 2;
-                    other2 = 0;
-                } else {
-                    position = 2;
-                    other1 = 0;
-                    other2 = 1;
-                }
-
-                return true;
-            }
-
-            int finalX;
-
-            @Override
-            public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
-                super.onViewPositionChanged(changedView, left, top, dx, dy);
-//                Log.i("jfowejowjeg", getScrollX() + ".." + left + ".." + changedView.getScaleX() + ".." + changedView.getLeft() + ".." +
-//                        changedView.getX());
-
-                finalX = left;
-            }
-
-            @Override
-            public int clampViewPositionHorizontal(View child, int left, int dx) {
-                if (pos == 0) {
-                    Log.i("Jfoiwejgwoe", "11111111111.." + position + ".." + other1 + ".." + other2);
-                    if (position == 0) {
-                        getChildAt(other1).layout(left + layoutWidth,//1
-                                0,
-                                left + layoutWidth * 2,
-                                getHeight());
-                        getChildAt(other2).layout(left + layoutWidth * 2,//2
-                                0,
-                                left + layoutWidth * 3,
-                                getHeight());
-                    } else if (position == 1) {
-                        getChildAt(other1).layout(left + layoutWidth,//2
-                                0,
-                                left + layoutWidth * 2,
-                                getHeight());
-                        getChildAt(other2).layout(left - layoutWidth,//0
-                                0,
-                                left,
-                                getHeight());
-                    } else {
-                        getChildAt(other1).layout(left - layoutWidth * 2,//0
-                                0,
-                                left - layoutWidth,
-                                getHeight());
-                        getChildAt(other2).layout(left - layoutWidth,//1
-                                0,
-                                left,
-                                getHeight());
-                    }
-//                    getChildAt(other1).layout(left + layoutWidth * (other1 - position),
-//                            0,
-//                            left + layoutWidth * (other1 - position) + layoutWidth,
-//                            getHeight());
-//                    getChildAt(other2).layout(left + layoutWidth * (other2 - position),
-//                            0,
-//                            left + layoutWidth * (other2 - position) + layoutWidth,
-//                            getHeight());
-                } else if (pos == 1) {
-                    Log.i("Jfoiwejgwoe", "22222222222222");
-                    if (position == 0) {
-                        getChildAt(other1).layout(left - layoutWidth * 2,//1
-                                0,
-                                left - layoutWidth,
-                                getHeight());
-                        getChildAt(other2).layout(left - layoutWidth,//2
-                                0,
-                                left,
-                                getHeight());
-                    } else if (position == 1) {
-                        getChildAt(other1).layout(left + layoutWidth,//2
-                                0,
-                                left + layoutWidth * 2,
-                                getHeight());
-                        getChildAt(other2).layout(left + layoutWidth * 2,//0
-                                0,
-                                left + layoutWidth * 3,
-                                getHeight());
-                    } else {
-                        getChildAt(other1).layout(left + layoutWidth,//0
-                                0,
-                                left + layoutWidth * 2,
-                                getHeight());
-                        getChildAt(other2).layout(left - layoutWidth,//1
-                                0,
-                                left,
-                                getHeight());
-                    }
-                } else {
-                    Log.i("Jfoiwejgwoe", "33333333333333");
-                    if (position == 0) {
-                        getChildAt(other1).layout(left + layoutWidth,
-                                0,
-                                left + layoutWidth * 2,
-                                getHeight());
-                        getChildAt(other2).layout(left - layoutWidth,
-                                0,
-                                left,
-                                getHeight());
-                    } else if (position == 1) {
-                        getChildAt(other1).layout(left - layoutWidth * 2,
-                                0,
-                                left - layoutWidth,
-                                getHeight());
-                        getChildAt(other2).layout(left - layoutWidth,
-                                0,
-                                left,
-                                getHeight());
-                    } else {
-                        getChildAt(other1).layout(left + layoutWidth,
-                                0,
-                                left + layoutWidth * 2,
-                                getHeight());
-                        getChildAt(other2).layout(left + layoutWidth * 2,
-                                0,
-                                left + layoutWidth * 3,
-                                getHeight());
-                    }
-                }
-
-
-                /*
-                 * 位置变换，
-                 * 规则：监测不可见的imageview，当两个imageview平均显示在屏幕时，让不可见的imageview根据滑动方向
-                 * 重新布局在最左侧或最右侧
-                 */
-//                for (int i = 0; i < getChildCount(); i++) {
-//                    if (Math.abs(getChildAt(i).getLeft()) >= layoutWidth + layoutWidth / 2) {
-//                        if (dx < 0) {
-//                            if (i == 0)
-//                                pos = 1;
-//                            else if (i == 1)
-//                                pos = 2;
-//                            else
-//                                pos = 0;
-//                        } else
-//                            pos = i;
-//                        getChildAt(i).layout(-getChildAt(i).getLeft(),
-//                                0,
-//                                -getChildAt(i).getLeft() + layoutWidth,
-//                                getHeight());
-//                    }
-//                }
-
-                return left;
-            }
-
-            @Override
-            public void onViewReleased(final View releasedChild, float xvel, float yvel) {
-                super.onViewReleased(releasedChild, xvel, yvel);
-//                Log.i("Jofwejogwe",releasedChild.getLeft()+"");
-//                Log.i("jfowgowe", getScrollX() + ".." + finalX + ".." + (finalX - getScrollX()));
-                int childLeft = releasedChild.getLeft();
-                int[] locationOnScreen = new int[2];
-                releasedChild.getLocationOnScreen(locationOnScreen);
-                Log.i("jofwjgwegweg", getScrollX() + ".." + childLeft + ".." + releasedChild.getX() + ".." + releasedChild.getLeft() + ".." + locationOnScreen[0] + ".." + locationOnScreen[1]);
-
-//                scroller.startScroll(getScrollX(), 0, childLeft > 0 ? childLeft - getScrollX() : layoutWidth + childLeft - getScrollX(), 0);
-//                invalidate();
-//                scrollBy(100,0);
-            }
-        });
-    }
-
     @Override
     public void computeScroll() {
         super.computeScroll();
         if (scroller.computeScrollOffset()) {
             scrollTo(scroller.getCurrX(), scroller.getCurrY());
             invalidate();
+        } else {
+//            if (rebound) {
+//                rebound = false;
+//            } else {
+            int scrollX = getScrollX();
+            if (scrollX != 0 && scrollX > 0 && loop) {
+                Log.i("bofwejgowe", "uiuiuiuiu");
+                if (direction == null) {
+//                        if (direction > 0) {//向左滑
+                    getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
+                            0,
+                            getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
+                            getHeight());
+                    int swap = childViewOrder.removeFirst();
+                    childViewOrder.addLast(swap);
+                } else {
+                    if (direction) {//向右滑
+                        Log.i("bofwejgowe", "right..right..");
+                        getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
+                                0,
+                                getChildAt(childViewOrder.get(0)).getLeft(),
+                                getHeight());
+                        int swap = childViewOrder.removeLast();
+                        childViewOrder.addFirst(swap);
+                    } else {//向左划
+                        Log.i("bofwejgowe", "left..left..");
+                        getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
+                                0,
+                                getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
+                                getHeight());
+                        int swap = childViewOrder.removeFirst();
+                        childViewOrder.addLast(swap);
+                    }
+                    direction = null;
+                }
+//                        } else {//向右滑
+//                            getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
+//                                    0,
+//                                    getChildAt(childViewOrder.get(0)).getLeft(),
+//                                    getHeight());
+//                            int swap = childViewOrder.removeLast();
+//                            childViewOrder.addFirst(swap);
+//                        }
+            }
         }
+        if (getScrollX() % layoutWidth == 0)
+            currentScrollX = 0;
+//        }
     }
 
-    public void startScroll() {
-
-//        Log.i("fjoiwejgwe...1",getScrollX()+"");
-//        scrollTo(100,0);
-//        Log.i("fjoiwejgwe...2",getScrollX()+"");
-    }
-
-    private int startX;
-    private int scrollX;
+    /**
+     * 允许视图滚动
+     */
+    private float startX;
+    private int startScrollX, lastScrollX, currentScrollX;
     /**
      * 子view的排列顺序
      */
@@ -334,57 +184,78 @@ public class LoopBanner extends ViewGroup {
     /**
      * 手指滑动时上一个点坐标
      */
-    private int lastMoveX;
+    private float lastMoveX;
+
+    private int scrollX;
+    /**
+     * 手动滚动
+     */
+//    private boolean manuslScroll;
+    private Boolean direction;
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-//        viewDragHelper.processTouchEvent(event);
-
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                lastMoveX = (int) event.getX();
-                startX = (int) event.getX();
                 scrollX = getScrollX();
+                startX = lastMoveX = event.getX();
+                startScrollX = scrollX;
+                if (scroller.computeScrollOffset()) {
+                    scroller.abortAnimation();
+                    startScrollX = lastScrollX;
+                    currentScrollX = scrollX % layoutWidth;
+                }
+                lastScrollX = startScrollX;
+                loop = false;
+                direction = null;
                 break;
             case MotionEvent.ACTION_MOVE:
-                scrollTo(-((int) (event.getX() - startX) - scrollX), 0);
-                int currentViewAt = Math.abs(getScrollX()) / getWidth();
-                if (event.getX() - lastMoveX > 0) {//向右滑
-                    if (currentViewAt != lastViewAt) {
-                        getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
-                                0,
-                                getChildAt(childViewOrder.get(0)).getLeft(),
-                                getHeight());
-                        lastViewAt = currentViewAt;
-                        int swap = childViewOrder.removeLast();
-                        childViewOrder.addFirst(swap);
-                    }
-                } else {//向左滑
-                    if (currentViewAt != lastViewAt) {
-                        getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
-                                0,
-                                getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
-                                getHeight());
-                        lastViewAt = currentViewAt;
-                        int swap = childViewOrder.removeFirst();
-                        childViewOrder.addLast(swap);
-                    }
-                }
-                lastMoveX = (int) event.getX();
+                float currentX = event.getX();
+                scrollTo(-((int) (currentX - startX)) + startScrollX + currentScrollX, 0);
+//                int currentViewAt = Math.abs(getScrollX()) / (getWidth() + 1);
+//
+//                if (currentX - lastMoveX > 0) {//向右滑
+//                    Log.i("joiwfejgweg", "右右右");
+//                    if (currentViewAt != lastViewAt) {
+//                        Log.i("fwoehgowe....右", currentX + "...." + lastMoveX + "..." + currentViewAt + "...." + lastViewAt + "..." + getScrollX());
+//                        getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
+//                                0,
+//                                getChildAt(childViewOrder.get(0)).getLeft(),
+//                                getHeight());
+//                        lastViewAt = currentViewAt;
+//                        int swap = childViewOrder.removeLast();
+//                        childViewOrder.addFirst(swap);
+//                    }
+//                } else if (currentX - lastMoveX < 0) {//向左滑
+//                    Log.i("joiwfejgweg", "左左左左");
+//                    if (currentViewAt != lastViewAt) {
+//                        Log.i("fwoehgowe....左", currentX + "...." + lastMoveX + "..." + currentViewAt + "...." + lastViewAt + "..." + getScrollX());
+//                        getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
+//                                0,
+//                                getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
+//                                getHeight());
+//                        lastViewAt = currentViewAt;
+//                        int swap = childViewOrder.removeFirst();
+//                        childViewOrder.addLast(swap);
+//                    }
+//                }
+//                lastMoveX = currentX;
                 break;
             case MotionEvent.ACTION_UP:
+                loop = true;
+                rebound = true;
                 int mScrollX = getScrollX();
-                int mScrollY = getScrollY();
-                View childView = findTopChildUnder((int) event.getX(), (int) event.getY(), mScrollX, mScrollY);
-                int cdLeft = childView.getLeft();
-                int instance = cdLeft - mScrollX;
+                int instance = mScrollX - startScrollX;
                 if (Math.abs(instance) > getWidth() / 2) {
-                    if (instance > 0)//释放后向右滑动
-                        scroller.startScroll(mScrollX, 0, cdLeft - mScrollX - layoutWidth, 0);
-                    else//释放后向左滑动
-                        scroller.startScroll(mScrollX, 0, cdLeft - mScrollX + layoutWidth, 0);
+                    if (instance > 0) {//释放后向左滑动
+                        direction = false;
+                        scroller.startScroll(mScrollX, 0, layoutWidth - instance, 0);
+                    } else {//释放后向右滑动
+                        direction = true;
+                        scroller.startScroll(mScrollX, 0, -instance - layoutWidth, 0);
+                    }
                 } else
-                    scroller.startScroll(mScrollX, 0, cdLeft - mScrollX, 0);
+                    scroller.startScroll(mScrollX, 0, -instance, 0);
                 invalidate();
                 break;
             default:
@@ -403,21 +274,60 @@ public class LoopBanner extends ViewGroup {
      * @return 点击的子view
      */
     private View findTopChildUnder(int x, int y, int scrollX, int scrolly) {
-        Log.i("fowjgwegwe", x + ".." + y + ".." + scrollX + ".." + scrolly);
         int childCount = getChildCount();
         for (int i = childCount - 1; i >= 0; i--) {
             View child = getChildAt(i);
             if (x + scrollX >= child.getLeft() && x + scrollX < child.getRight()
                     && y + scrolly >= child.getTop() && y + scrolly < child.getBottom()) {
                 return child;
-            } else {
-                Log.i("fowjgwegwe", "fail..");
             }
         }
         return null;
     }
-//    @Override
-//    public boolean onInterceptTouchEvent(MotionEvent ev) {
-//        return viewDragHelper.shouldInterceptTouchEvent(ev);
-//    }
+
+    /**
+     * 是否自动循环
+     */
+    private boolean loop = true;
+    /**
+     * 是否是松手后自动反弹
+     */
+    private boolean rebound;
+
+    /**
+     * 自动循环
+     */
+    private void autoLoop() {
+        new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                while (true) {
+                    try {
+                        sleep(3000);
+                        if (loop) {
+                            handler.sendEmptyMessage(1);
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }.start();
+    }
+
+    public void startLoop() {
+
+    }
+
+    private Handler handler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            if (msg.what == 1) {
+                scroller.startScroll(getScrollX(), 0, layoutWidth, 0);
+                invalidate();
+            }
+        }
+    };
 }
