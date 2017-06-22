@@ -4,10 +4,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Message;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.widget.ViewDragHelper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -27,7 +25,6 @@ import java.util.LinkedList;
 
 public class LoopBanner extends ViewGroup {
     private int layoutWidth;
-    private ViewDragHelper viewDragHelper;
     private Context context;
     private Scroller scroller;
 
@@ -115,147 +112,89 @@ public class LoopBanner extends ViewGroup {
         super.onDraw(canvas);
     }
 
+    /**
+     * 向左滑动时，每交换一次顺序，加一；向右滑动时，每交换一次顺序，减一
+     */
+    private int exchangeCount;
+
+    /**
+     * 滚动过程中监听子view的排序及布局，根据滚动距离进行调整，让其中间的子view始终可见
+     */
     @Override
     public void computeScroll() {
         super.computeScroll();
+        int scrollX = getScrollX();
+        if (scrollX <= (layoutWidth / 2 + layoutWidth * (exchangeCount - 1))) {
+            Log.d("LoopBanner", "向右滑动，最后一个子view放置最前");
+            getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
+                    0,
+                    getChildAt(childViewOrder.get(0)).getLeft(),
+                    getHeight());
+            int swap = childViewOrder.removeLast();
+            childViewOrder.addFirst(swap);
+            exchangeCount--;
+        }
+        if (scrollX > (layoutWidth / 2 + layoutWidth * exchangeCount)) {
+            Log.d("LoopBanner", "向左滑动，第一个子view放置最后");
+            getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
+                    0,
+                    getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
+                    getHeight());
+            int swap = childViewOrder.removeFirst();
+            childViewOrder.addLast(swap);
+            exchangeCount++;
+        }
         if (scroller.computeScrollOffset()) {
             scrollTo(scroller.getCurrX(), scroller.getCurrY());
             invalidate();
-        } else {
-//            if (rebound) {
-//                rebound = false;
-//            } else {
-            int scrollX = getScrollX();
-            if (scrollX != 0 && scrollX > 0 && loop) {
-                Log.i("bofwejgowe", "uiuiuiuiu");
-                if (direction == null) {
-//                        if (direction > 0) {//向左滑
-                    getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
-                            0,
-                            getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
-                            getHeight());
-                    int swap = childViewOrder.removeFirst();
-                    childViewOrder.addLast(swap);
-                } else {
-                    if (direction) {//向右滑
-                        Log.i("bofwejgowe", "right..right..");
-                        getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
-                                0,
-                                getChildAt(childViewOrder.get(0)).getLeft(),
-                                getHeight());
-                        int swap = childViewOrder.removeLast();
-                        childViewOrder.addFirst(swap);
-                    } else {//向左划
-                        Log.i("bofwejgowe", "left..left..");
-                        getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
-                                0,
-                                getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
-                                getHeight());
-                        int swap = childViewOrder.removeFirst();
-                        childViewOrder.addLast(swap);
-                    }
-                    direction = null;
-                }
-//                        } else {//向右滑
-//                            getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
-//                                    0,
-//                                    getChildAt(childViewOrder.get(0)).getLeft(),
-//                                    getHeight());
-//                            int swap = childViewOrder.removeLast();
-//                            childViewOrder.addFirst(swap);
-//                        }
-            }
         }
-        if (getScrollX() % layoutWidth == 0)
-            currentScrollX = 0;
-//        }
     }
 
     /**
-     * 允许视图滚动
+     * 手指放下时的x坐标
      */
-    private float startX;
-    private int startScrollX, lastScrollX, currentScrollX;
+    private int startX;
+    /**
+     * 手指放下时已滚动的距离
+     */
+    private int startScrollX;
     /**
      * 子view的排列顺序
      */
     private LinkedList<Integer> childViewOrder = new LinkedList<>();
-    private int lastViewAt;
-    /**
-     * 手指滑动时上一个点坐标
-     */
-    private float lastMoveX;
-
-    private int scrollX;
-    /**
-     * 手动滚动
-     */
-//    private boolean manuslScroll;
-    private Boolean direction;
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                scrollX = getScrollX();
-                startX = lastMoveX = event.getX();
+                int scrollX = getScrollX();
+                startX = (int) event.getX();
                 startScrollX = scrollX;
                 if (scroller.computeScrollOffset()) {
                     scroller.abortAnimation();
-                    startScrollX = lastScrollX;
-                    currentScrollX = scrollX % layoutWidth;
                 }
-                lastScrollX = startScrollX;
                 loop = false;
-                direction = null;
                 break;
             case MotionEvent.ACTION_MOVE:
-                float currentX = event.getX();
-                scrollTo(-((int) (currentX - startX)) + startScrollX + currentScrollX, 0);
-//                int currentViewAt = Math.abs(getScrollX()) / (getWidth() + 1);
-//
-//                if (currentX - lastMoveX > 0) {//向右滑
-//                    Log.i("joiwfejgweg", "右右右");
-//                    if (currentViewAt != lastViewAt) {
-//                        Log.i("fwoehgowe....右", currentX + "...." + lastMoveX + "..." + currentViewAt + "...." + lastViewAt + "..." + getScrollX());
-//                        getChildAt(childViewOrder.get(2)).layout(getChildAt(childViewOrder.get(0)).getLeft() - layoutWidth,
-//                                0,
-//                                getChildAt(childViewOrder.get(0)).getLeft(),
-//                                getHeight());
-//                        lastViewAt = currentViewAt;
-//                        int swap = childViewOrder.removeLast();
-//                        childViewOrder.addFirst(swap);
-//                    }
-//                } else if (currentX - lastMoveX < 0) {//向左滑
-//                    Log.i("joiwfejgweg", "左左左左");
-//                    if (currentViewAt != lastViewAt) {
-//                        Log.i("fwoehgowe....左", currentX + "...." + lastMoveX + "..." + currentViewAt + "...." + lastViewAt + "..." + getScrollX());
-//                        getChildAt(childViewOrder.get(0)).layout(getChildAt(childViewOrder.get(2)).getRight(),
-//                                0,
-//                                getChildAt(childViewOrder.get(2)).getRight() + layoutWidth,
-//                                getHeight());
-//                        lastViewAt = currentViewAt;
-//                        int swap = childViewOrder.removeFirst();
-//                        childViewOrder.addLast(swap);
-//                    }
-//                }
-//                lastMoveX = currentX;
+                int currentX = (int) event.getX();
+                scrollTo(-(currentX - startX) + startScrollX, 0);
                 break;
             case MotionEvent.ACTION_UP:
                 loop = true;
-                rebound = true;
                 int mScrollX = getScrollX();
-                int instance = mScrollX - startScrollX;
+                int instance = mScrollX % layoutWidth;
                 if (Math.abs(instance) > getWidth() / 2) {
                     if (instance > 0) {//释放后向左滑动
-                        direction = false;
+                        Log.d("LoopBanner", "手指释放，向左滑动");
                         scroller.startScroll(mScrollX, 0, layoutWidth - instance, 0);
                     } else {//释放后向右滑动
-                        direction = true;
+                        Log.d("LoopBanner", "手指释放，向右滑动");
                         scroller.startScroll(mScrollX, 0, -instance - layoutWidth, 0);
                     }
-                } else
+                } else {
+                    Log.d("LoopBanner", "手指释放，恢复向右滑动");
                     scroller.startScroll(mScrollX, 0, -instance, 0);
+                }
                 invalidate();
                 break;
             default:
@@ -289,10 +228,6 @@ public class LoopBanner extends ViewGroup {
      * 是否自动循环
      */
     private boolean loop = true;
-    /**
-     * 是否是松手后自动反弹
-     */
-    private boolean rebound;
 
     /**
      * 自动循环
