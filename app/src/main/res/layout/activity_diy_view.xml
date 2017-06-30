@@ -4,30 +4,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.icandemy.diyview.loopbanner.LoopBanner
+    <com.cheng.diyview.loopbanner.LoopBanner
         android:id="@+id/loopBanner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true" />
-
-    <Button
-        android:id="@+id/button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:onClick="scroll"
-        android:text="scroll" />
-
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignTop="@+id/button"
-        android:layout_toEndOf="@+id/button"
-        android:layout_toRightOf="@+id/button"
-        android:onClick="change"
-        android:text="change" />
 
 </RelativeLayout>

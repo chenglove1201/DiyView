@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="LoopBanner">
-        <attr name="indicationMargin" format="dimension" />
-        <attr name="indicationDiameter" format="dimension" />
-        <attr name="scrollDuration" format="integer" />
-        <attr name="indicationNormal" format="color" />
-        <attr name="indicationSelected" format="color" />
+        <attr name="indication_margin" format="dimension" />
+        <attr name="indication_diameter" format="dimension" />
+        <attr name="scroll_duration" format="integer" />
+        <attr name="indication_normal" format="color" />
+        <attr name="indication_selected" format="color" />
     </declare-styleable>
 </resources>

@@ -4,9 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.icandemy.diyview.MainActivity">
+    tools:context="com.cheng.diyview.MainActivity">
 
-    <com.icandemy.diyview.tablayout.TabLayout
+    <com.cheng.diyview.tablayout.TabLayout
         android:id="@+id/tablayout"
         android:layout_width="0dp"
         android:layout_height="50dp"
@@ -23,35 +23,35 @@
         app:tabSelectedTextColor="@android:color/white"
         app:tabTextColor="@android:color/white">
 
-        <com.icandemy.diyview.tablayout.TabItem
+        <com.cheng.diyview.tablayout.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="艺面塑雕" />
 
-        <com.icandemy.diyview.tablayout.TabItem
+        <com.cheng.diyview.tablayout.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="深层清洁" />
 
-        <com.icandemy.diyview.tablayout.TabItem
+        <com.cheng.diyview.tablayout.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="冰点脱毛" />
 
-        <com.icandemy.diyview.tablayout.TabItem
+        <com.cheng.diyview.tablayout.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="美容排毒" />
 
-        <com.icandemy.diyview.tablayout.TabItem
+        <com.cheng.diyview.tablayout.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="美容排毒" />
 
-        <com.icandemy.diyview.tablayout.TabItem
+        <com.cheng.diyview.tablayout.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="美容排毒" />
-    </com.icandemy.diyview.tablayout.TabLayout>
+    </com.cheng.diyview.tablayout.TabLayout>
 
 </android.support.constraint.ConstraintLayout>
