@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_channel_tag_selected"
+        android:cursorVisible="false"
+        android:focusable="false"
+        android:maxLines="4"
+        android:scrollbars="vertical"
+        android:text="ffjafhioewhgoihowiehgiowioejfihweuiohgiowejijfwioejgiojwioejgwioejgiwjeigojwioejiojifjwioejiogjwioegjwgjweijgiowjeiogjiowfeafhioewhgiohaiwgoiwehgiowiegjiowejgaiowjegawegjiogjiwjegiojwioejgiojweiojgiowejgjwioegwewioejgwg"
+        android:visibility="gone" />
+
+    <com.cheng.diyview.channel.ChannelGridView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:channelColumn="4"
+        app:channelHeight="50dp"
+        app:channelWidth="80dp"
+        app:verticalSpacing="20dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello" />
+
+    <com.cheng.diyview.channel.MyGridView
+        android:id="@+id/gv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@android:color/darker_gray"
+        android:gravity="center"
+        android:numColumns="4"
+        android:verticalSpacing="10dp"
+        android:visibility="gone">
+
+    </com.cheng.diyview.channel.MyGridView>
+
+</LinearLayout>

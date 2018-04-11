@@ -1,57 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.cheng.diyview.MainActivity">
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
 
-    <com.cheng.diyview.tablayout.TabLayout
-        android:id="@+id/tablayout"
-        android:layout_width="0dp"
-        android:layout_height="50dp"
-        android:layout_marginLeft="0dp"
-        android:layout_marginRight="0dp"
-        android:layout_marginTop="20dp"
-        android:background="@color/colorOption"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:tabIndicatorColor="@color/colorOptionSelected"
-        app:tabIndicatorHeight="30dp"
-        app:tabMode="scrollable"
-        app:tabSelectedTextColor="@android:color/white"
-        app:tabTextColor="@android:color/white">
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="toTabLayout"
+        android:text="TabLayout" />
 
-        <com.cheng.diyview.tablayout.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="艺面塑雕" />
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="toLoopBanner"
+        android:text="LoopBanner" />
 
-        <com.cheng.diyview.tablayout.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="深层清洁" />
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="toWheel"
+        android:text="Wheel" />
 
-        <com.cheng.diyview.tablayout.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="冰点脱毛" />
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="toRefreshRecycleView"
+        android:text="RefreshRecycleView" />
 
-        <com.cheng.diyview.tablayout.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="美容排毒" />
-
-        <com.cheng.diyview.tablayout.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="美容排毒" />
-
-        <com.cheng.diyview.tablayout.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="美容排毒" />
-    </com.cheng.diyview.tablayout.TabLayout>
-
-</android.support.constraint.ConstraintLayout>
+</LinearLayout>
