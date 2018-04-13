@@ -3,9 +3,12 @@ package com.cheng.diyview.channel;
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Color;
 import android.graphics.PointF;
+import android.os.Build;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -30,6 +33,7 @@ import com.cheng.diyview.R;
 public class ChannelGridView extends LinearLayout {
     private Channel myChannel, recommendChannel;
     private View view1, view2;
+    private TextView view1Tip;
 
     public ChannelGridView(Context context) {
         this(context, null);
@@ -43,29 +47,48 @@ public class ChannelGridView extends LinearLayout {
         super(context, attrs, defStyleAttr);
         view1 = LayoutInflater.from(context).inflate(R.layout.cgl_my_channel, null);
         TextView view1Title = view1.findViewById(R.id.tv_title);
-        TextView view1Tip = view1.findViewById(R.id.tv_tip);
-        view1Tip.setText("已选频道");
+        view1Tip = view1.findViewById(R.id.tv_tip);
+        view1Title.setText("已选频道");
         view1Tip.setText("按住拖拽频道");
+        view1Tip.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (view1Tip.getText().toString().equals("完成")) {
+                    myChannel.stopDrag();
+                    view1Tip.setText("按住拖拽频道");
+                }
+            }
+        });
         addView(view1);
         myChannel = new Channel(context, attrs, defStyleAttr);
         myChannel.setEnableDrag(true);
         addView(myChannel);
         view2 = LayoutInflater.from(context).inflate(R.layout.cgl_my_channel, null);
         TextView view2Title = view2.findViewById(R.id.tv_title);
-        TextView view2Tip = view2.findViewById(R.id.tv_tip);
+        final TextView view2Tip = view2.findViewById(R.id.tv_tip);
         view2Title.setText("推荐频道");
         view2Tip.setText("点击添加频道");
-        view2Tip.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                myChannel.addChannel();
-            }
-        });
         addView(view2);
         recommendChannel = new Channel(context, attrs, defStyleAttr);
         recommendChannel.setEnableDrag(false);
         addView(recommendChannel);
         setOrientation(VERTICAL);
+    }
+
+    /**
+     * 添加频道
+     */
+    private void clickAddChannel(View v) {
+        myChannel.addChannel(v);
+    }
+
+    /**
+     * 删除我的频道
+     *
+     * @param v
+     */
+    private void clickRecycleChannel(View v) {
+        recommendChannel.recycleChannel(v);
     }
 
     @Override
@@ -113,7 +136,7 @@ public class ChannelGridView extends LinearLayout {
 
         private int channelBottomPadding;
 
-        private String[] content = {"要闻", "视频", "新时代", "娱乐", "体育", "军事", "NBA", "国际", "科技", "财经", "汽车", "电影", "游戏", "独家", "房产"};
+        private String[] content = {"要闻", "视频", "新时代", "娱乐", "体育", "军事", "NBA", "国际", "科技"};
 
 //        private String[] content = {"要闻", "视频", "新时代", "娱乐", "体育", "军事", "NBA", "国际", "科技", "财经", "汽车", "电影", "游戏", "独家", "房产",
 //                "图片", "时尚", "呼和浩特", "三打白骨精"};
@@ -128,7 +151,7 @@ public class ChannelGridView extends LinearLayout {
          */
         private SparseArray<View> channelViews;
 
-        private final int DURATION_TIME = 200;
+        private final int DURATION_TIME = 2000;
 
         public Channel(Context context) {
             this(context, null);
@@ -188,10 +211,13 @@ public class ChannelGridView extends LinearLayout {
          */
         public void setEnableDrag(boolean isEnableDrag) {
             if (isEnableDrag) {
+                channelClickType = NORMAL;
                 for (int i = 0; i < channelViews.size(); i++) {
                     channelViews.get(i).setOnTouchListener(this);
                     channelViews.get(i).setOnLongClickListener(this);
                 }
+            } else {
+                channelClickType = ADD;
             }
         }
 
@@ -240,13 +266,17 @@ public class ChannelGridView extends LinearLayout {
                 int spaceCount = childCount % channelColumn == 0 ? childCount / channelColumn - 1 : childCount / channelColumn;
                 height = rowCount * channelHeight + verticalSpacing * spaceCount + channelTopPadding + channelBottomPadding;
             }
-            setMeasuredDimension(width, height);
+            if (!isDynamicAddHeight) {//不是动态的增加高度
+                setMeasuredDimension(width, height);
+            } else {//动态的增加高度
+                setMeasuredDimension(width, dynamicHeight);
+            }
         }
 
         /**
          * 是否增加频道
          */
-        private boolean isAddChannel;
+        private boolean isChannelEditing;
 
         @Override
         protected void onLayout(boolean changed, int l, int t, int r, int b) {
@@ -282,7 +312,7 @@ public class ChannelGridView extends LinearLayout {
                 }
                 isLayout = false;
             }
-            if (isAddChannel) {
+            if (isChannelEditing) {
                 int childAt = channelViews.size() - 1;
                 int flag = childAt % channelColumn;
                 View childView = channelViews.get(childAt);
@@ -290,8 +320,8 @@ public class ChannelGridView extends LinearLayout {
                         (channelHeight + verticalSpacing) * ((childAt) / channelColumn) + channelTopPadding,
                         channelWidth * (flag + 1) + horizontalSpacing * flag + channelLeftPadding,
                         (channelHeight + verticalSpacing) * ((childAt) / channelColumn) + channelHeight + channelTopPadding);
-                channelPoints.put(childAt, new PointF(childView.getX(), childView.getY()));
-                isAddChannel = false;
+//                channelPoints.put(childAt, new PointF(childView.getX(), childView.getY()));
+                isChannelEditing = false;
             }
         }
 
@@ -310,29 +340,209 @@ public class ChannelGridView extends LinearLayout {
             return false;
         }
 
+        /**
+         * 频道普通点击
+         */
+        private final int NORMAL = 0X00;
+
+        /**
+         * 点击增加频道
+         */
+        private final int ADD = 0X01;
+
+        /**
+         * 点击删除频道
+         */
+        private final int DELETE = 0x02;
+
+        private int channelClickType = NORMAL;
+
         @Override
-        public void onClick(View v) {
-            Log.i("jfoiwjeijgiwegwe", "channel onclick");
+        public void onClick(final View v) {
+            if (channelClickType == NORMAL) {
+
+            } else if (channelClickType == ADD) {
+                //推荐频道中，要做相应的移除一个view后的过渡动画
+                if (!animatorSet.isRunning()) {
+                    //在myChannel需要操作的事情
+                    clickAddChannel(v);
+                    //在recommendChannel需要操作的事情
+                    int vPosition = channelViews.indexOfValue(v);
+                    animatorSet = new AnimatorSet();
+                    ObjectAnimator[] objectAnimators = new ObjectAnimator[(channelViews.size() - vPosition - 1) * 2];
+                    if (objectAnimators.length > 0) {
+                        for (int i = vPosition; i < channelViews.size() - 1; i++) {
+                            ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(channelViews.get(i + 1), "X", channelPoints.get(i).x);
+                            ObjectAnimator objectAnimator1 = ObjectAnimator.ofFloat(channelViews.get(i + 1), "Y", channelPoints.get(i).y);
+                            objectAnimators[2 * (i - vPosition)] = objectAnimator;
+                            objectAnimators[2 * (i - vPosition) + 1] = objectAnimator1;
+                            channelViews.put(i, channelViews.get(i + 1));
+                        }
+                        animatorSet.playTogether(objectAnimators);
+                        animatorSet.setDuration(DURATION_TIME);
+                        animatorSet.start();
+                    }
+                    channelViews.removeAt(channelViews.size() - 1);
+                    channelPoints.removeAt(channelPoints.size() - 1);
+                    animatorSet.addListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            removeView(v);
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
+
+                        }
+                    });
+                    if (channelViews.size() % channelColumn == 0) {
+                        isDynamicAddHeight = true;
+                        ValueAnimator dynamicHeightAnimator = ObjectAnimator.ofInt(getMeasuredHeight(), getMeasuredHeight() - channelHeight - verticalSpacing);
+                        dynamicHeightAnimator.setDuration(DURATION_TIME);
+                        dynamicHeightAnimator.start();
+                        dynamicHeightAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                            @Override
+                            public void onAnimationUpdate(ValueAnimator animation) {
+                                dynamicHeight = (int) animation.getAnimatedValue();
+                                requestLayout();
+                            }
+                        });
+                        dynamicHeightAnimator.addListener(new Animator.AnimatorListener() {
+                            @Override
+                            public void onAnimationStart(Animator animation) {
+
+                            }
+
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                isDynamicAddHeight = false;
+                            }
+
+                            @Override
+                            public void onAnimationCancel(Animator animation) {
+
+                            }
+
+                            @Override
+                            public void onAnimationRepeat(Animator animation) {
+
+                            }
+                        });
+                    }
+                }
+            } else if (channelClickType == DELETE) {
+                if (!animatorSet.isRunning()) {
+                    clickRecycleChannel(v);
+                    v.setVisibility(INVISIBLE);
+                    animatorSet = new AnimatorSet();
+                    int vPosition = channelViews.indexOfValue(v);
+                    animatorSet = new AnimatorSet();
+                    ObjectAnimator[] objectAnimators = new ObjectAnimator[(channelViews.size() - vPosition - 1) * 2];
+                    if (objectAnimators.length > 0) {
+                        for (int i = vPosition; i < channelViews.size() - 1; i++) {
+                            ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(channelViews.get(i + 1), "X", channelPoints.get(i).x);
+                            ObjectAnimator objectAnimator1 = ObjectAnimator.ofFloat(channelViews.get(i + 1), "Y", channelPoints.get(i).y);
+                            objectAnimators[2 * (i - vPosition)] = objectAnimator;
+                            objectAnimators[2 * (i - vPosition) + 1] = objectAnimator1;
+                            channelViews.put(i, channelViews.get(i + 1));
+                        }
+                        animatorSet.playTogether(objectAnimators);
+                        animatorSet.setDuration(DURATION_TIME);
+                        animatorSet.start();
+                    }
+                    channelViews.removeAt(channelViews.size() - 1);
+                    channelPoints.removeAt(channelPoints.size() - 1);
+                    animatorSet.addListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            removeView(v);
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
+
+                        }
+                    });
+                    if (channelViews.size() % channelColumn == 0) {
+                        isDynamicAddHeight = true;
+                        ValueAnimator dynamicHeightAnimator = ObjectAnimator.ofInt(getMeasuredHeight(), getMeasuredHeight() - channelHeight - verticalSpacing);
+                        dynamicHeightAnimator.setDuration(DURATION_TIME);
+                        dynamicHeightAnimator.start();
+                        dynamicHeightAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                            @Override
+                            public void onAnimationUpdate(ValueAnimator animation) {
+                                dynamicHeight = (int) animation.getAnimatedValue();
+                                requestLayout();
+                            }
+                        });
+                        dynamicHeightAnimator.addListener(new Animator.AnimatorListener() {
+                            @Override
+                            public void onAnimationStart(Animator animation) {
+
+                            }
+
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                isDynamicAddHeight = false;
+                            }
+
+                            @Override
+                            public void onAnimationCancel(Animator animation) {
+
+                            }
+
+                            @Override
+                            public void onAnimationRepeat(Animator animation) {
+
+                            }
+                        });
+                    }
+                }
+            }
         }
 
         @Override
         public boolean onLongClick(View v) {
-            isChannelLongClick = true;
-            copyChannel = new TextView(mContext);
-            copyChannel.setLayoutParams(new LinearLayout.LayoutParams(channelWidth, channelHeight));
-            copyChannel.setText(((TextView) v).getText());
-            copyChannel.setGravity(Gravity.CENTER);
-            copyChannel.setBackgroundResource(R.drawable.bg_channel_tag_focused);
+            if (!animatorSet.isRunning()) {
+                view1Tip.setText("完成");
+                channelClickType = DELETE;
+                isChannelLongClick = true;
+                copyChannel = new TextView(mContext);
+                copyChannel.setLayoutParams(new ViewGroup.LayoutParams(channelWidth, channelHeight));
+                copyChannel.setText(((TextView) v).getText());
+                copyChannel.setGravity(Gravity.CENTER);
+                copyChannel.setBackgroundResource(R.drawable.bg_channel_tag_focused);
 //                copyChannel.measure(MeasureSpec.makeMeasureSpec(channelWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(channelHeight, MeasureSpec.EXACTLY));
 //                copyChannel.layout(v.getLeft(), v.getTop(), v.getRight(), v.getBottom());
-            copyChannel.setX(v.getX());
-            copyChannel.setY(v.getY() - getMeasuredHeight() - view2.getMeasuredHeight() - recommendChannel.getMeasuredHeight());
-            ChannelGridView.this.addView(copyChannel);
-            selectPosition = vPosition = channelViews.indexOfValue(v);
-            selectChannelX = channelPoints.get(vPosition).x;
-            selectChannelY = channelPoints.get(vPosition).y;
-            for (int i = 0; i < channelViews.size(); i++) {
-                channelViews.get(i).setBackgroundResource(R.drawable.bg_channel_tag_selected);
+                copyChannel.setX(v.getX());
+                copyChannel.setY(v.getY() - getMeasuredHeight() - view2.getMeasuredHeight() - recommendChannel.getMeasuredHeight());
+                ChannelGridView.this.addView(copyChannel);
+                selectPosition = vPosition = channelViews.indexOfValue(v);
+                selectChannelX = channelPoints.get(vPosition).x;
+                selectChannelY = channelPoints.get(vPosition).y;
+                for (int i = 0; i < channelViews.size(); i++) {
+                    channelViews.get(i).setBackgroundResource(R.drawable.bg_channel_tag_selected);
+                }
             }
             return true;
         }
@@ -432,25 +642,272 @@ public class ChannelGridView extends LinearLayout {
 
                 }
             });
+        }
+
+        /**
+         * 完成拖拽
+         */
+        public void stopDrag() {
+            channelClickType = NORMAL;
             for (int i = 0; i < channelViews.size(); i++) {
                 channelViews.get(i).setBackgroundResource(R.drawable.bg_channel_tag_normal);
             }
         }
 
         /**
-         * 添加频道
+         * 是否动态的增加高度
+         * <p>当添加频道时，如果新增一行，动态的增加高度</p>
          */
-        public void addChannel() {
+        private boolean isDynamicAddHeight;
+
+        private int dynamicHeight;
+
+        /**
+         * 开始时动态高度
+         */
+        private int startDynamicHeight;
+
+        /**
+         * 结束时动态高度
+         */
+        private int endDynamicHeight;
+
+        public void addChannel(final View v) {
+            final TextView newAddChannel = copyChannel(v);
+            newAddChannel.setVisibility(INVISIBLE);
+            if (channelClickType == DELETE) {
+                newAddChannel.setBackgroundResource(R.drawable.bg_channel_tag_selected);
+            } else {
+                newAddChannel.setBackgroundResource(R.drawable.bg_channel_tag_normal);
+            }
+            isChannelEditing = true;
+            channelViews.put(channelViews.size(), newAddChannel);
+            if (channelViews.size() % channelColumn == 1) {
+                isDynamicAddHeight = true;
+            }
+            startDynamicHeight = getMeasuredHeight();
+            endDynamicHeight = startDynamicHeight + channelHeight + channelBottomPadding + verticalSpacing;
+            addView(newAddChannel);
+            if (channelPoints.size() % channelColumn == 0) {
+                channelPoints.put(channelPoints.size(), new PointF(channelPoints.get(0).x,
+                        channelPoints.get(channelPoints.size() - 1).y + verticalSpacing + channelHeight));
+            } else {
+                channelPoints.put(channelPoints.size(), new PointF(channelPoints.get(channelPoints.size() - 1).x + channelWidth + horizontalSpacing,
+                        channelPoints.get(channelPoints.size() - 1).y));
+            }
+            if (isDynamicAddHeight) {
+                ValueAnimator dynamicHeightAnimator = ObjectAnimator.ofInt(startDynamicHeight, endDynamicHeight);
+                dynamicHeightAnimator.setDuration(DURATION_TIME);
+                dynamicHeightAnimator.start();
+                dynamicHeightAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        dynamicHeight = (int) animation.getAnimatedValue();
+                        requestLayout();
+                    }
+                });
+                dynamicHeightAnimator.addListener(new Animator.AnimatorListener() {
+                    @Override
+                    public void onAnimationStart(Animator animation) {
+
+                    }
+
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        isDynamicAddHeight = false;
+                    }
+
+                    @Override
+                    public void onAnimationCancel(Animator animation) {
+
+                    }
+
+                    @Override
+                    public void onAnimationRepeat(Animator animation) {
+
+                    }
+                });
+            }
+            //当增加一个频道时，在父view中复制一个做过渡动画
+            final TextView copyOutChannel = copyChannel(v);
+            copyOutChannel.setBackgroundResource(R.drawable.bg_channel_tag_normal);
+            copyOutChannel.setLayoutParams(new LayoutParams(channelWidth, channelHeight));
+            copyOutChannel.setX(v.getX());
+            copyOutChannel.setY(v.getY() + view1.getMeasuredHeight() + myChannel.getMeasuredHeight() + view2.getMeasuredHeight());
+            ChannelGridView.this.addView(copyOutChannel);
+            ViewPropertyAnimator animate = copyOutChannel.animate();
+            if ((channelPoints.size() - 1) % channelColumn == 0) {
+                animate.x(channelPoints.get(0).x)
+                        .y(channelPoints.get(channelPoints.size() - 1).y + view1.getMeasuredHeight())
+                        .setDuration(DURATION_TIME);
+            } else {
+                animate.x(channelPoints.get(channelPoints.size() - 1).x)
+                        .y(channelPoints.get(channelPoints.size() - 1).y + view1.getMeasuredHeight())
+                        .setDuration(DURATION_TIME);
+
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                animate.setUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        if ((float) animation.getAnimatedValue() > 0) {
+                            v.setVisibility(INVISIBLE);
+                        }
+                    }
+                });
+            }
+            animate.setListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(Animator animation) {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                        v.setVisibility(INVISIBLE);
+                    }
+                }
+
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    newAddChannel.setVisibility(VISIBLE);
+                    ChannelGridView.this.removeView(copyOutChannel);
+                }
+
+                @Override
+                public void onAnimationCancel(Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationRepeat(Animator animation) {
+
+                }
+            });
+        }
+
+        /**
+         * 复制频道
+         */
+        private TextView copyChannel(View v) {
             TextView textView = new TextView(mContext);
-            textView.setText("阿基米");
+            textView.setText(((TextView) v).getText());
             textView.setGravity(Gravity.CENTER);
-            textView.setBackgroundResource(R.drawable.bg_channel_tag_normal);
             textView.setOnTouchListener(this);
             textView.setOnLongClickListener(this);
             textView.setOnClickListener(this);
-            isAddChannel = true;
-            channelViews.put(channelViews.size(), textView);
-            addView(textView);
+            return textView;
+        }
+
+        /**
+         * 删除我的频道
+         *
+         * @param v
+         */
+        public void recycleChannel(final View v) {
+//            final TextView newAddChannel = copyChannel(v);
+//            newAddChannel.setVisibility(INVISIBLE);
+//            if (channelClickType == DELETE) {
+//                newAddChannel.setBackgroundResource(R.drawable.bg_channel_tag_selected);
+//            } else {
+//                newAddChannel.setBackgroundResource(R.drawable.bg_channel_tag_normal);
+//            }
+//            isChannelEditing = true;
+//            channelViews.put(channelViews.size(), newAddChannel);
+//            if (channelViews.size() % channelColumn == 1) {
+//                isDynamicAddHeight = true;
+//            }
+//            startDynamicHeight = getMeasuredHeight();
+//            endDynamicHeight = startDynamicHeight + channelHeight + channelBottomPadding + verticalSpacing;
+//            addView(newAddChannel);
+//            if (channelPoints.size() % channelColumn == 0) {
+//                channelPoints.put(channelPoints.size(), new PointF(channelPoints.get(0).x,
+//                        channelPoints.get(channelPoints.size() - 1).y + verticalSpacing + channelHeight));
+//            } else {
+//                channelPoints.put(channelPoints.size(), new PointF(channelPoints.get(channelPoints.size() - 1).x + channelWidth + horizontalSpacing,
+//                        channelPoints.get(channelPoints.size() - 1).y));
+//            }
+//            if (isDynamicAddHeight) {
+//                ValueAnimator dynamicHeightAnimator = ObjectAnimator.ofInt(startDynamicHeight, endDynamicHeight);
+//                dynamicHeightAnimator.setDuration(DURATION_TIME);
+//                dynamicHeightAnimator.start();
+//                dynamicHeightAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+//                    @Override
+//                    public void onAnimationUpdate(ValueAnimator animation) {
+//                        dynamicHeight = (int) animation.getAnimatedValue();
+//                        requestLayout();
+//                    }
+//                });
+//                dynamicHeightAnimator.addListener(new Animator.AnimatorListener() {
+//                    @Override
+//                    public void onAnimationStart(Animator animation) {
+//
+//                    }
+//
+//                    @Override
+//                    public void onAnimationEnd(Animator animation) {
+//                        isDynamicAddHeight = false;
+//                    }
+//
+//                    @Override
+//                    public void onAnimationCancel(Animator animation) {
+//
+//                    }
+//
+//                    @Override
+//                    public void onAnimationRepeat(Animator animation) {
+//
+//                    }
+//                });
+//            }
+//            //当增加一个频道时，在父view中复制一个做过渡动画
+//            final TextView copyOutChannel = copyChannel(v);
+//            copyOutChannel.setBackgroundResource(R.drawable.bg_channel_tag_normal);
+//            copyOutChannel.setLayoutParams(new LayoutParams(channelWidth, channelHeight));
+//            copyOutChannel.setX(v.getX());
+//            copyOutChannel.setY(v.getY() + view1.getMeasuredHeight());
+//            ChannelGridView.this.addView(copyOutChannel);
+//            ViewPropertyAnimator animate = copyOutChannel.animate();
+//            if ((channelPoints.size() - 1) % channelColumn == 0) {
+//                animate.x(channelPoints.get(0).x)
+//                        .y(channelPoints.get(channelPoints.size() - 1).y + view1.getMeasuredHeight() + myChannel.getMeasuredHeight() + view2.getMeasuredHeight())
+//                        .setDuration(DURATION_TIME);
+//            } else {
+//                animate.x(channelPoints.get(channelPoints.size() - 1).x)
+//                        .y(channelPoints.get(channelPoints.size() - 1).y + view1.getMeasuredHeight() + view2.getMeasuredHeight() + myChannel.getMeasuredHeight())
+//                        .setDuration(DURATION_TIME);
+//
+//            }
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+//                animate.setUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+//                    @Override
+//                    public void onAnimationUpdate(ValueAnimator animation) {
+//                        if ((float) animation.getAnimatedValue() > 0) {
+//                            v.setVisibility(INVISIBLE);
+//                        }
+//                    }
+//                });
+//            }
+//            animate.setListener(new Animator.AnimatorListener() {
+//                @Override
+//                public void onAnimationStart(Animator animation) {
+//                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+//                        v.setVisibility(INVISIBLE);
+//                    }
+//                }
+//
+//                @Override
+//                public void onAnimationEnd(Animator animation) {
+//                    newAddChannel.setVisibility(VISIBLE);
+//                    ChannelGridView.this.removeView(copyOutChannel);
+//                }
+//
+//                @Override
+//                public void onAnimationCancel(Animator animation) {
+//
+//                }
+//
+//                @Override
+//                public void onAnimationRepeat(Animator animation) {
+//
+//                }
+//            });
         }
     }
 }
