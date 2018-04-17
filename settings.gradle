@@ -1,1 +1,1 @@
-include ':app', ':refreshrecycleview'
+include ':app', ':refreshrecycleview', ':channelgridview'

@@ -8,7 +8,6 @@
     <EditText
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_channel_tag_selected"
         android:cursorVisible="false"
         android:focusable="false"
         android:maxLines="4"
@@ -16,29 +15,34 @@
         android:text="ffjafhioewhgoihowiehgiowioejfihweuiohgiowejijfwioejgiojwioejgwioejgiwjeigojwioejiojifjwioejiogjwioegjwgjweijgiowjeiogjiowfeafhioewhgiohaiwgoiwehgiowiegjiowejgaiowjegawegjiogjiwjegiojwioejgiojweiojgiowejgjwioegwewioejgwg"
         android:visibility="gone" />
 
-    <com.cheng.diyview.channel.ChannelGridView
+    <com.cheng.channelgridview.ChannelGridView
+        android:id="@+id/cgv_channel"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:channelColumn="4"
-        app:channelHeight="50dp"
-        app:channelWidth="80dp"
+        android:layout_height="match_parent"
+        android:scrollbars="vertical"
+        app:channelHeight="40dp"
+        app:channelWidth="60dp"
         app:verticalSpacing="20dp" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-    <com.cheng.diyview.channel.MyGridView
-        android:id="@+id/gv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@android:color/darker_gray"
-        android:gravity="center"
-        android:numColumns="4"
-        android:verticalSpacing="10dp"
-        android:visibility="gone">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hello" />
 
-    </com.cheng.diyview.channel.MyGridView>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="getMyChannel"
+            android:text="My Channel" />
 
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="getRecommendChannel"
+            android:text="Recommend Channel" />
+    </LinearLayout>
 </LinearLayout>
