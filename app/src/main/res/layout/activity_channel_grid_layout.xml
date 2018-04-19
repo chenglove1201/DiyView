@@ -17,8 +17,8 @@
 
     <com.cheng.channelgridview.ChannelGridView
         android:id="@+id/cgv_channel"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="300dp"
+        android:layout_height="400dp"
         android:scrollbars="vertical"
         app:channelHeight="40dp"
         app:channelWidth="60dp"
