@@ -11,7 +11,6 @@ import android.graphics.PointF;
 import android.os.Build;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -29,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class ChannelGridView extends ScrollView {
+public class ChannelGridView3 extends ScrollView {
     private Context mContext;
     private AttributeSet mAttrs;
     private int mDefStyleAttr;
@@ -66,15 +65,15 @@ public class ChannelGridView extends ScrollView {
 
     private int channelBottomPadding;
 
-    public ChannelGridView(Context context) {
+    public ChannelGridView3(Context context) {
         this(context, null);
     }
 
-    public ChannelGridView(Context context, AttributeSet attrs) {
+    public ChannelGridView3(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public ChannelGridView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public ChannelGridView3(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         this.mContext = context;
         this.mAttrs = attrs;
@@ -262,142 +261,39 @@ public class ChannelGridView extends ScrollView {
             addView(myChannelView);
         }
 
-        private abstract class ChannelView extends ViewGroup implements OnClickListener {
+        /**
+         * 获取点击频道之上的view高度
+         *
+         * @param index
+         * @return
+         */
+        private int getClickChannelTopHeight(int index) {
+            int recommendTitleViewsHeight = 0, recommendChannelViewsHeight = 0;
+            for (int i = 0; i < index + 1; i++) {
+                recommendTitleViewsHeight += recommendTitleViews.get(i).getMeasuredHeight();
+            }
+            for (int i = 0; i < index; i++) {
+                recommendChannelViewsHeight += recommendChannelViews.get(i).getMeasuredHeight();
+            }
+            return recommendTitleViewsHeight + recommendChannelViewsHeight;
+        }
+
+        private class MyChannelView extends ViewGroup implements OnTouchListener, OnClickListener, OnLongClickListener {
             /**
              * 左右间隔
              */
-            public int horizontalSpacing;
+            private int horizontalSpacing;
 
             /**
              * 频道坐标
              */
-            public SparseArray<PointF> channelPoints = new SparseArray<>();
+            private SparseArray<PointF> channelPoints = new SparseArray<>();
 
             /**
              * 频道集合
              */
-            public SparseArray<View> channelViews = new SparseArray<>();
+            private SparseArray<View> channelViews = new SparseArray<>();
 
-            /**
-             * 是否动态的增加高度
-             * <p>当添加频道时，如果新增一行，动态的增加高度</p>
-             */
-            public boolean isDynamicAddHeight;
-
-            public int dynamicHeight;
-
-            private boolean isLayout = true;
-
-            public AnimatorSet animatorSet = new AnimatorSet();
-
-            public ChannelView(Context context) {
-                this(context, null);
-            }
-
-            public ChannelView(Context context, AttributeSet attrs) {
-                this(context, attrs, 0);
-            }
-
-            public ChannelView(Context context, AttributeSet attrs, int defStyleAttr) {
-                super(context, attrs, defStyleAttr);
-            }
-
-            @Override
-            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                int width, height;
-                if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.EXACTLY) {
-                    width = MeasureSpec.getSize(widthMeasureSpec);
-                } else {
-                    width = 500;
-                }
-                int childCount = channelViews.size();
-                if (channelWidth <= 0) {
-                    measureChildren(widthMeasureSpec, heightMeasureSpec);
-                    for (int i = 0; i < childCount; i++) {
-                        int channelMeasuredWidth = channelViews.get(i).getMeasuredWidth();
-                        channelWidth = channelMeasuredWidth > channelWidth ? channelMeasuredWidth : channelWidth;
-                    }
-                }
-                if (channelHeight <= 0) {
-                    if (channelWidth > 0) {
-                        measureChildren(widthMeasureSpec, heightMeasureSpec);
-                    }
-                    for (int i = 0; i < childCount; i++) {
-                        int channelMeasuredHeight = channelViews.get(i).getMeasuredHeight();
-                        channelHeight = channelMeasuredHeight > channelHeight ? channelMeasuredHeight : channelHeight;
-                    }
-                }
-                for (int i = 0; i < childCount; i++) {
-                    channelViews.get(i).measure(MeasureSpec.makeMeasureSpec(channelWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(channelHeight, MeasureSpec.EXACTLY));
-                }
-                if (channelColumn == 1) {
-                    horizontalSpacing = width - channelWidth - channelLeftPadding - channelRightPadding;
-                } else {
-                    horizontalSpacing = (width - channelWidth * channelColumn - channelLeftPadding - channelRightPadding) / (channelColumn - 1);
-                }
-                horizontalSpacing = horizontalSpacing <= 0 ? 0 : horizontalSpacing;
-                if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY) {
-                    height = MeasureSpec.getSize(heightMeasureSpec);
-                } else {
-                    int rowCount = 0, spaceCount = 0;
-                    if (childCount != 0) {
-                        rowCount = childCount % channelColumn == 0 ? childCount / channelColumn : childCount / channelColumn + 1;
-                        spaceCount = childCount % channelColumn == 0 ? childCount / channelColumn - 1 : childCount / channelColumn;
-                    }
-                    height = rowCount * channelHeight + verticalSpacing * spaceCount + channelTopPadding + channelBottomPadding;
-                }
-                if (!isDynamicAddHeight) {//不是动态的增加高度
-                    setMeasuredDimension(width, height);
-                } else {//动态的增加高度
-                    setMeasuredDimension(width, dynamicHeight);
-                }
-            }
-
-            @Override
-            protected void onLayout(boolean changed, int l, int t, int r, int b) {
-                if (isLayout) {
-                    for (int i = 0; i < channelViews.size(); i++) {
-                        View childAt = channelViews.get(i);
-                        int flag = i % channelColumn;
-                        childAt.layout(channelWidth * flag + horizontalSpacing * flag + channelLeftPadding,
-                                (channelHeight + verticalSpacing) * (i / channelColumn) + channelTopPadding,
-                                channelWidth * (flag + 1) + horizontalSpacing * flag + channelLeftPadding,
-                                (channelHeight + verticalSpacing) * (i / channelColumn) + channelHeight + channelTopPadding);
-                        channelPoints.put(i, new PointF(childAt.getX(), childAt.getY()));
-                    }
-                    isLayout = false;
-                }
-            }
-
-            /**
-             * 获取点击频道之上的view高度
-             *
-             * @param index
-             * @return
-             */
-            public int getClickChannelTopHeight(int index) {
-                int recommendTitleViewsHeight = 0, recommendChannelViewsHeight = 0;
-                for (int i = 0; i < index + 1; i++) {
-                    recommendTitleViewsHeight += recommendTitleViews.get(i).getMeasuredHeight();
-                }
-                for (int i = 0; i < index; i++) {
-                    recommendChannelViewsHeight += recommendChannelViews.get(i).getMeasuredHeight();
-                }
-                return recommendTitleViewsHeight + recommendChannelViewsHeight;
-            }
-
-            /**
-             * 复制频道
-             */
-            public TextView copyChannel(View v) {
-                TextView textView = new TextView(mContext);
-                textView.setText(((TextView) v).getText());
-                textView.setGravity(Gravity.CENTER);
-                return textView;
-            }
-        }
-
-        private class MyChannelView extends ChannelView implements OnTouchListener, OnLongClickListener {
             /**
              * 固定频道的颜色
              */
@@ -464,6 +360,97 @@ public class ChannelGridView extends ScrollView {
                         addView(textView);
                         channelViews.put(i, textView);
                     }
+                }
+            }
+
+            private boolean isLayout = true;
+
+            private AnimatorSet animatorSet = new AnimatorSet();
+
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                int width, height;
+                if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.EXACTLY) {
+                    width = MeasureSpec.getSize(widthMeasureSpec);
+                } else {
+                    width = 500;
+                }
+                int childCount = channelViews.size();
+                if (channelWidth <= 0) {
+                    measureChildren(widthMeasureSpec, heightMeasureSpec);
+                    for (int i = 0; i < childCount; i++) {
+                        int channelMeasuredWidth = channelViews.get(i).getMeasuredWidth();
+                        channelWidth = channelMeasuredWidth > channelWidth ? channelMeasuredWidth : channelWidth;
+                    }
+                }
+                if (channelHeight <= 0) {
+                    if (channelWidth > 0) {
+                        measureChildren(widthMeasureSpec, heightMeasureSpec);
+                    }
+                    for (int i = 0; i < childCount; i++) {
+                        int channelMeasuredHeight = channelViews.get(i).getMeasuredHeight();
+                        channelHeight = channelMeasuredHeight > channelHeight ? channelMeasuredHeight : channelHeight;
+                    }
+                }
+                for (int i = 0; i < childCount; i++) {
+                    channelViews.get(i).measure(MeasureSpec.makeMeasureSpec(channelWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(channelHeight, MeasureSpec.EXACTLY));
+                }
+                if (channelColumn == 1) {
+                    horizontalSpacing = width - channelWidth - channelLeftPadding - channelRightPadding;
+                } else {
+                    horizontalSpacing = (width - channelWidth * channelColumn - channelLeftPadding - channelRightPadding) / (channelColumn - 1);
+                }
+                horizontalSpacing = horizontalSpacing <= 0 ? 0 : horizontalSpacing;
+                if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY) {
+                    height = MeasureSpec.getSize(heightMeasureSpec);
+                } else {
+                    int rowCount = 0, spaceCount = 0;
+                    if (childCount != 0) {
+                        rowCount = childCount % channelColumn == 0 ? childCount / channelColumn : childCount / channelColumn + 1;
+                        spaceCount = childCount % channelColumn == 0 ? childCount / channelColumn - 1 : childCount / channelColumn;
+                    }
+                    height = rowCount * channelHeight + verticalSpacing * spaceCount + channelTopPadding + channelBottomPadding;
+                }
+                if (!isDynamicAddHeight) {//不是动态的增加高度
+                    setMeasuredDimension(width, height);
+                } else {//动态的增加高度
+                    setMeasuredDimension(width, dynamicHeight);
+                }
+            }
+
+            @Override
+            protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                if (isLayout) {
+                    for (int i = 0; i < channelViews.size(); i++) {
+                        View childAt = channelViews.get(i);
+//            switch (i % CHANNEL_COLUMN) {
+//                case 0:
+//                    childAt.layout(0, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN), childWidth,
+//                            (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                case 1:
+//                    childAt.layout(childWidth + horizontalSpacing, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN),
+//                            childWidth * 2 + horizontalSpacing, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                case 2:
+//                    childAt.layout(childWidth * 2 + horizontalSpacing * 2, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN),
+//                            childWidth * 3 + horizontalSpacing * 2, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                case 3:
+//                    childAt.layout(childWidth * 3 + horizontalSpacing * 3, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN),
+//                            childWidth * 4 + horizontalSpacing * 3, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                default:
+//                    break;
+//            }
+                        int flag = i % channelColumn;
+                        childAt.layout(channelWidth * flag + horizontalSpacing * flag + channelLeftPadding,
+                                (channelHeight + verticalSpacing) * (i / channelColumn) + channelTopPadding,
+                                channelWidth * (flag + 1) + horizontalSpacing * flag + channelLeftPadding,
+                                (channelHeight + verticalSpacing) * (i / channelColumn) + channelHeight + channelTopPadding);
+                        channelPoints.put(i, new PointF(childAt.getX(), childAt.getY()));
+                    }
+                    isLayout = false;
                 }
             }
 
@@ -704,6 +691,14 @@ public class ChannelGridView extends ScrollView {
                 }
             }
 
+            /**
+             * 是否动态的增加高度
+             * <p>当添加频道时，如果新增一行，动态的增加高度</p>
+             */
+            private boolean isDynamicAddHeight;
+
+            private int dynamicHeight;
+
             private void addChannel(final View v, final int index) {
                 final TextView newAddChannel = copyChannel(v);
                 newAddChannel.setTag(index);
@@ -833,13 +828,38 @@ public class ChannelGridView extends ScrollView {
                     }
                 });
             }
+
+            /**
+             * 复制频道
+             */
+            private TextView copyChannel(View v) {
+                TextView textView = new TextView(mContext);
+                textView.setText(((TextView) v).getText());
+                textView.setGravity(Gravity.CENTER);
+                return textView;
+            }
         }
 
         /**
          * 其他频道
          */
-        private class RecommendChannelView extends ChannelView {
+        private class RecommendChannelView extends ViewGroup implements OnClickListener {
+            /**
+             * 左右间隔
+             */
+            private int horizontalSpacing;
+
             private String[] recommendContent;
+
+            /**
+             * 频道坐标
+             */
+            private SparseArray<PointF> channelPoints = new SparseArray<>();
+
+            /**
+             * 频道集合
+             */
+            private SparseArray<View> channelViews = new SparseArray<>();
 
             /**
              * 第index个推荐频道模块
@@ -896,6 +916,77 @@ public class ChannelGridView extends ScrollView {
                         addView(textView);
                         channelViews.put(i, textView);
                     }
+                }
+            }
+
+            private boolean isLayout = true;
+
+            private AnimatorSet animatorSet = new AnimatorSet();
+
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                int width, height;
+                if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.EXACTLY) {
+                    width = MeasureSpec.getSize(widthMeasureSpec);
+                } else {
+                    width = 500;
+                }
+                int childCount = channelViews.size();
+                if (channelWidth <= 0) {
+                    measureChildren(widthMeasureSpec, heightMeasureSpec);
+                    for (int i = 0; i < childCount; i++) {
+                        int channelMeasuredWidth = channelViews.get(i).getMeasuredWidth();
+                        channelWidth = channelMeasuredWidth > channelWidth ? channelMeasuredWidth : channelWidth;
+                    }
+                }
+                if (channelHeight <= 0) {
+                    if (channelWidth > 0) {
+                        measureChildren(widthMeasureSpec, heightMeasureSpec);
+                    }
+                    for (int i = 0; i < childCount; i++) {
+                        int channelMeasuredHeight = channelViews.get(i).getMeasuredHeight();
+                        channelHeight = channelMeasuredHeight > channelHeight ? channelMeasuredHeight : channelHeight;
+                    }
+                }
+                for (int i = 0; i < childCount; i++) {
+                    channelViews.get(i).measure(MeasureSpec.makeMeasureSpec(channelWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(channelHeight, MeasureSpec.EXACTLY));
+                }
+                if (channelColumn == 1) {
+                    horizontalSpacing = width - channelWidth - channelLeftPadding - channelRightPadding;
+                } else {
+                    horizontalSpacing = (width - channelWidth * channelColumn - channelLeftPadding - channelRightPadding) / (channelColumn - 1);
+                }
+                horizontalSpacing = horizontalSpacing <= 0 ? 0 : horizontalSpacing;
+                if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY) {
+                    height = MeasureSpec.getSize(heightMeasureSpec);
+                } else {
+                    int rowCount = 0, spaceCount = 0;
+                    if (childCount != 0) {
+                        rowCount = childCount % channelColumn == 0 ? childCount / channelColumn : childCount / channelColumn + 1;
+                        spaceCount = childCount % channelColumn == 0 ? childCount / channelColumn - 1 : childCount / channelColumn;
+                    }
+                    height = rowCount * channelHeight + verticalSpacing * spaceCount + channelTopPadding + channelBottomPadding;
+                }
+                if (!isDynamicAddHeight) {//不是动态的增加高度
+                    setMeasuredDimension(width, height);
+                } else {//动态的增加高度
+                    setMeasuredDimension(width, dynamicHeight);
+                }
+            }
+
+            @Override
+            protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                if (isLayout) {
+                    for (int i = 0; i < channelViews.size(); i++) {
+                        View childAt = channelViews.get(i);
+                        int flag = i % channelColumn;
+                        childAt.layout(channelWidth * flag + horizontalSpacing * flag + channelLeftPadding,
+                                (channelHeight + verticalSpacing) * (i / channelColumn) + channelTopPadding,
+                                channelWidth * (flag + 1) + horizontalSpacing * flag + channelLeftPadding,
+                                (channelHeight + verticalSpacing) * (i / channelColumn) + channelHeight + channelTopPadding);
+                        channelPoints.put(i, new PointF(childAt.getX(), childAt.getY()));
+                    }
+                    isLayout = false;
                 }
             }
 
@@ -972,6 +1063,24 @@ public class ChannelGridView extends ScrollView {
                         }
                     });
                 }
+            }
+
+            /**
+             * 是否动态的增加高度
+             * <p>当添加频道时，如果新增一行，动态的增加高度</p>
+             */
+            private boolean isDynamicAddHeight;
+
+            private int dynamicHeight;
+
+            /**
+             * 复制频道
+             */
+            private TextView copyChannel(View v) {
+                TextView textView = new TextView(mContext);
+                textView.setText(((TextView) v).getText());
+                textView.setGravity(Gravity.CENTER);
+                return textView;
             }
 
             /**

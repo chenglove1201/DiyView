@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="Channel">
+    <declare-styleable name="ChannelGridView">
         <attr name="verticalSpacing" format="dimension" />
         <attr name="channelWidth" format="dimension" />
         <attr name="channelHeight" format="dimension" />

@@ -17,12 +17,12 @@
 
     <com.cheng.channelgridview.ChannelGridView
         android:id="@+id/cgv_channel"
-        android:layout_width="300dp"
+        android:layout_width="match_parent"
         android:layout_height="400dp"
         android:scrollbars="vertical"
         app:channelHeight="40dp"
-        app:channelWidth="60dp"
-        app:verticalSpacing="20dp" />
+        app:channelWidth="80dp"
+        app:verticalSpacing="20dp"/>
 
     <LinearLayout
         android:layout_width="match_parent"

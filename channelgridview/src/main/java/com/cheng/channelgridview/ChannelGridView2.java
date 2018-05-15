@@ -11,7 +11,6 @@ import android.graphics.PointF;
 import android.os.Build;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -23,73 +22,21 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-public class ChannelGridView extends ScrollView {
-    private Context mContext;
-    private AttributeSet mAttrs;
-    private int mDefStyleAttr;
-    private String[] myChannelContent;
-    private Map<String, String[]> recommendChannelContents = new LinkedHashMap<>();
-    private int channelFixedToPosition = -1;
+public class ChannelGridView2 extends ScrollView {
     private ChannelGrid channelGrid;
 
-    /**
-     * 上下间隔
-     */
-    private int verticalSpacing;
-
-    /**
-     * 列数
-     */
-    private int channelColumn;
-
-    /**
-     * 频道宽
-     */
-    private int channelWidth;
-
-    /**
-     * 频道高
-     */
-    private int channelHeight;
-
-    private int channelLeftPadding;
-
-    private int channelRightPadding;
-
-    private int channelTopPadding;
-
-    private int channelBottomPadding;
-
-    public ChannelGridView(Context context) {
+    public ChannelGridView2(Context context) {
         this(context, null);
     }
 
-    public ChannelGridView(Context context, AttributeSet attrs) {
+    public ChannelGridView2(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public ChannelGridView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public ChannelGridView2(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        this.mContext = context;
-        this.mAttrs = attrs;
-        this.mDefStyleAttr = defStyleAttr;
-        TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.ChannelGridView);
-        verticalSpacing = (int) typedArray.getDimension(R.styleable.ChannelGridView_verticalSpacing, 30);
-        channelWidth = (int) typedArray.getDimension(R.styleable.ChannelGridView_channelWidth, 0);
-        channelHeight = (int) typedArray.getDimension(R.styleable.ChannelGridView_channelHeight, 0);
-        channelColumn = typedArray.getInteger(R.styleable.ChannelGridView_channelColumn, 4);
-        channelLeftPadding = (int) typedArray.getDimension(R.styleable.ChannelGridView_channelLeftPadding, 0);
-        channelRightPadding = (int) typedArray.getDimension(R.styleable.ChannelGridView_channelRightPadding, 0);
-        channelTopPadding = (int) typedArray.getDimension(R.styleable.ChannelGridView_channelTopPadding, 0);
-        channelBottomPadding = (int) typedArray.getDimension(R.styleable.ChannelGridView_channelBottomPadding, 0);
-        typedArray.recycle();
-        recommendChannelContents.put("其他频道", null);
+        channelGrid = new ChannelGrid(context, attrs, defStyleAttr);
+        addView(channelGrid);
     }
 
     @Override
@@ -105,25 +52,30 @@ public class ChannelGridView extends ScrollView {
      * @param toPosition 前toPosition个channel不能拖动，toPosition是下标
      */
     public void setFixedChannel(int toPosition) {
-        this.channelFixedToPosition = toPosition;
+        channelGrid.myChannel.channelFixedToPosition = toPosition;
+        channelGrid.myChannel.resetBackground();
     }
 
     /**
      * 设置我的频道
+     *
+     * @return
      */
     public void setMyChannel(String[] channel) {
-        this.myChannelContent = channel;
+        channelGrid.myChannel.content = channel;
+        channelGrid.myChannel.addView();
+        channelGrid.myChannel.setEnableDrag(true);
     }
 
     /**
      * 设置推荐频道
      *
-     * @param channels
+     * @return
      */
-    public void setRecommendChannels(Map<String, String[]> channels) {
-        if (channels != null) {
-            this.recommendChannelContents = channels;
-        }
+    public void setRecommendChannel(String[] channel) {
+        channelGrid.recommendChannel.content = channel;
+        channelGrid.recommendChannel.addView();
+        channelGrid.recommendChannel.setEnableDrag(false);
     }
 
     /**
@@ -132,25 +84,27 @@ public class ChannelGridView extends ScrollView {
      * @return
      */
     public String[] getMyChannel() {
-        String[] channels = null;
-        if (channelGrid != null) {
-            channels = new String[channelGrid.myChannelView.channelViews.size()];
-            for (int i = 0; i < channelGrid.myChannelView.channelViews.size(); i++) {
-                channels[i] = ((TextView) channelGrid.myChannelView.channelViews.get(i)).getText().toString();
-            }
+        String[] channels = new String[channelGrid.myChannel.channelViews.size()];
+        for (int i = 0; i < channelGrid.myChannel.channelViews.size(); i++) {
+            channels[i] = ((TextView) channelGrid.myChannel.channelViews.get(i)).getText().toString();
+        }
+        return channels;
+    }
+
+    /**
+     * 获取推荐频道
+     *
+     * @return
+     */
+    public String[] getRecommendChannel() {
+        String[] channels = new String[channelGrid.recommendChannel.channelViews.size()];
+        for (int i = 0; i < channelGrid.recommendChannel.channelViews.size(); i++) {
+            channels[i] = ((TextView) channelGrid.recommendChannel.channelViews.get(i)).getText().toString();
         }
         return channels;
     }
 
     private OnChannelItemClickListener onChannelItemClickListener;
-
-    /**
-     * 填充数据
-     */
-    public void inflateData() {
-        channelGrid = new ChannelGrid(mContext, mAttrs, mDefStyleAttr);
-        addView(channelGrid);
-    }
 
     public interface OnChannelItemClickListener {
         void channelItemClick(int itemId, String channel);
@@ -161,15 +115,9 @@ public class ChannelGridView extends ScrollView {
     }
 
     private class ChannelGrid extends LinearLayout {
-        private List<RecommendChannelView> recommendChannelViews = new ArrayList<>();
-        private List<View> recommendTitleViews = new ArrayList<>();
-        private MyChannelView myChannelView;
+        private Channel myChannel, recommendChannel;
+        private View view1, view2;
         private TextView view1Tip;
-
-        /**
-         * 动画持续时间
-         */
-        private final int DURATION_TIME = 200;
 
         public ChannelGrid(Context context) {
             this(context, null);
@@ -181,16 +129,39 @@ public class ChannelGridView extends ScrollView {
 
         public ChannelGrid(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
             super(context, attrs, defStyleAttr);
+            view1 = LayoutInflater.from(context).inflate(R.layout.cgl_my_channel, null);
+            TextView view1Title = view1.findViewById(R.id.tv_title);
+            view1Tip = view1.findViewById(R.id.tv_tip);
+            view1Title.setText("已选频道");
+            view1Tip.setText("按住拖拽频道");
+            view1Tip.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (view1Tip.getText().toString().equals("完成")) {
+                        myChannel.stopDrag();
+                        view1Tip.setText("按住拖拽频道");
+                    }
+                }
+            });
+            addView(view1);
+            myChannel = new Channel(context, attrs, defStyleAttr);
+            addView(myChannel);
+            view2 = LayoutInflater.from(context).inflate(R.layout.cgl_my_channel, null);
+            TextView view2Title = view2.findViewById(R.id.tv_title);
+            final TextView view2Tip = view2.findViewById(R.id.tv_tip);
+            view2Title.setText("推荐频道");
+            view2Tip.setText("点击添加频道");
+            addView(view2);
+            recommendChannel = new Channel(context, attrs, defStyleAttr);
+            addView(recommendChannel);
             setOrientation(VERTICAL);
-            addMyChannel();
-            addRecommendChannel();
         }
 
         /**
          * 添加频道
          */
-        private void clickAddChannel(View v, int index) {
-            myChannelView.addChannel(v, index);
+        private void clickAddChannel(View v) {
+            myChannel.addChannel(v);
         }
 
         /**
@@ -199,108 +170,171 @@ public class ChannelGridView extends ScrollView {
          * @param v
          */
         private void clickRecycleChannel(View v) {
-            recommendChannelViews.get((int) v.getTag()).recycleChannel(v);
+            recommendChannel.recycleChannel(v);
         }
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-            myChannelView.measure(widthMeasureSpec, heightMeasureSpec);
-            int recommendChannelViewsHeight = 0, recommendChannelViewsWidth = 0,
-                    recommendTitleViewHeight = 0, recommendTitleViewWidth = 0;
-            for (int i = 0; i < recommendChannelViews.size(); i++) {
-                RecommendChannelView recommendChannelView = recommendChannelViews.get(i);
-                recommendChannelViewsHeight += recommendChannelView.getMeasuredHeight();
-                recommendChannelViewsWidth += recommendChannelView.getMeasuredWidth();
-                View recommendTitleView = recommendTitleViews.get(i);
-                recommendTitleViewHeight += recommendTitleView.getMeasuredHeight();
-                recommendTitleViewWidth += recommendTitleView.getMeasuredWidth();
-            }
-            setMeasuredDimension(myChannelTitleView.getMeasuredWidth() + myChannelView.getMeasuredWidth() + recommendChannelViewsWidth + recommendTitleViewWidth,
-                    myChannelTitleView.getMeasuredHeight() + myChannelView.getMeasuredHeight() + recommendChannelViewsHeight + recommendTitleViewHeight);
+            myChannel.measure(widthMeasureSpec, heightMeasureSpec);
+            recommendChannel.measure(widthMeasureSpec, heightMeasureSpec);
+            setMeasuredDimension(view1.getMeasuredWidth() + myChannel.getMeasuredWidth() + view2.getMeasuredWidth() + recommendChannel.getMeasuredWidth(),
+                    view1.getMeasuredHeight() + myChannel.getMeasuredHeight() + view2.getMeasuredHeight() + recommendChannel.getMeasuredHeight());
         }
 
-        /**
-         * 增加推荐的频道
-         */
-        public void addRecommendChannel() {
-            Set<Map.Entry<String, String[]>> set = recommendChannelContents.entrySet();
-            int index = 0;
-            for (Map.Entry<String, String[]> aSet : set) {
-                View view = LayoutInflater.from(mContext).inflate(R.layout.cgl_my_channel, null);
-                TextView viewTitle = view.findViewById(R.id.tv_title);
-                final TextView viewTip = view.findViewById(R.id.tv_tip);
-                viewTitle.setText(aSet.getKey());
-                viewTip.setText("点击添加频道");
-                addView(view);
-                recommendTitleViews.add(view);
-                RecommendChannelView recommendChannel = new RecommendChannelView(mContext, mAttrs, mDefStyleAttr, aSet.getValue(), index++);
-                addView(recommendChannel);
-                recommendChannelViews.add(recommendChannel);
-            }
-        }
+        private class Channel extends ViewGroup implements OnTouchListener, OnClickListener, OnLongClickListener {
+            private Context mContext;
 
-        private View myChannelTitleView;
-
-        public void addMyChannel() {
-            myChannelTitleView = LayoutInflater.from(mContext).inflate(R.layout.cgl_my_channel, null);
-            TextView view1Title = myChannelTitleView.findViewById(R.id.tv_title);
-            view1Tip = myChannelTitleView.findViewById(R.id.tv_tip);
-            view1Title.setText("已选频道");
-            view1Tip.setText("按住拖拽频道");
-            view1Tip.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (view1Tip.getText().toString().equals("完成")) {
-                        myChannelView.stopDrag();
-                        view1Tip.setText("按住拖拽频道");
-                    }
-                }
-            });
-            addView(myChannelTitleView);
-            myChannelView = new MyChannelView(mContext, mAttrs, mDefStyleAttr);
-            addView(myChannelView);
-        }
-
-        private abstract class ChannelView extends ViewGroup implements OnClickListener {
             /**
              * 左右间隔
              */
-            public int horizontalSpacing;
+            private int horizontalSpacing;
+
+            /**
+             * 上下间隔
+             */
+            private int verticalSpacing;
+
+            /**
+             * 列数
+             */
+            private int channelColumn;
+
+            /**
+             * 频道宽
+             */
+            private int channelWidth;
+
+            /**
+             * 频道高
+             */
+            private int channelHeight;
+
+            private int channelLeftPadding;
+
+            private int channelRightPadding;
+
+            private int channelTopPadding;
+
+            private int channelBottomPadding;
+
+//        private String[] content = {"要闻", "视频", "新时代", "娱乐", "体育", "军事", "NBA", "国际", "科技"};
+
+            private String[] content;
 
             /**
              * 频道坐标
              */
-            public SparseArray<PointF> channelPoints = new SparseArray<>();
+            private SparseArray<PointF> channelPoints = new SparseArray<>();
 
             /**
              * 频道集合
              */
-            public SparseArray<View> channelViews = new SparseArray<>();
+            private SparseArray<View> channelViews = new SparseArray<>();
 
             /**
-             * 是否动态的增加高度
-             * <p>当添加频道时，如果新增一行，动态的增加高度</p>
+             * 固定的频道
              */
-            public boolean isDynamicAddHeight;
+            private int channelFixedToPosition = -1;
 
-            public int dynamicHeight;
+            /**
+             * 固定频道的颜色
+             */
+            private final String FIXED_CHANNEL = "#CCCCCC";
 
-            private boolean isLayout = true;
+            /**
+             * 动画持续时间
+             */
+            private final int DURATION_TIME = 200;
 
-            public AnimatorSet animatorSet = new AnimatorSet();
-
-            public ChannelView(Context context) {
+            public Channel(Context context) {
                 this(context, null);
             }
 
-            public ChannelView(Context context, AttributeSet attrs) {
+            public Channel(Context context, @Nullable AttributeSet attrs) {
                 this(context, attrs, 0);
             }
 
-            public ChannelView(Context context, AttributeSet attrs, int defStyleAttr) {
+            public Channel(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
                 super(context, attrs, defStyleAttr);
+                this.mContext = context;
+//                TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.Channel);
+//                verticalSpacing = (int) typedArray.getDimension(R.styleable.Channel_verticalSpacing, 30);
+//                channelWidth = (int) typedArray.getDimension(R.styleable.Channel_channelWidth, 0);
+//                channelHeight = (int) typedArray.getDimension(R.styleable.Channel_channelHeight, 0);
+//                channelColumn = typedArray.getInteger(R.styleable.Channel_channelColumn, 4);
+//                channelLeftPadding = (int) typedArray.getDimension(R.styleable.Channel_channelLeftPadding, 0);
+//                channelRightPadding = (int) typedArray.getDimension(R.styleable.Channel_channelRightPadding, 0);
+//                channelTopPadding = (int) typedArray.getDimension(R.styleable.Channel_channelTopPadding, 0);
+//                channelBottomPadding = (int) typedArray.getDimension(R.styleable.Channel_channelBottomPadding, 0);
+//                typedArray.recycle();
+                init();
             }
+
+            private void init() {
+                if (channelColumn <= 0) {
+                    channelColumn = 1;
+                }
+                if (channelLeftPadding <= 0) {
+                    channelLeftPadding = 0;
+                }
+                if (channelTopPadding <= 0) {
+                    channelTopPadding = 0;
+                }
+                if (channelRightPadding <= 0) {
+                    channelRightPadding = 0;
+                }
+                if (channelBottomPadding <= 0) {
+                    channelBottomPadding = 0;
+                }
+            }
+
+            private void addView() {
+                if (content != null) {
+                    for (int i = 0; i < content.length; i++) {
+                        TextView textView = new TextView(mContext);
+                        textView.setText(content[i]);
+                        textView.setGravity(Gravity.CENTER);
+                        textView.setBackgroundResource(R.drawable.bg_channel_tag_normal);
+                        if (i <= channelFixedToPosition) {
+                            textView.setTextColor(Color.parseColor(FIXED_CHANNEL));
+                        }
+                        textView.setOnClickListener(this);
+                        addView(textView);
+                        channelViews.put(i, textView);
+                    }
+                }
+            }
+
+            /**
+             * 重设不能点击的channel背景色
+             */
+            private void resetBackground() {
+                if (channelViews.size() >= channelFixedToPosition) {
+                    for (int i = 0; i <= channelFixedToPosition; i++) {
+                        ((TextView) channelViews.get(i)).setTextColor(Color.parseColor(FIXED_CHANNEL));
+                    }
+                }
+            }
+
+            /**
+             * 设置是否能拖拽
+             */
+            private void setEnableDrag(boolean isEnableDrag) {
+                if (isEnableDrag) {
+                    channelClickType = NORMAL;
+                    for (int i = 0; i < channelViews.size(); i++) {
+                        channelViews.get(i).setOnTouchListener(this);
+                        channelViews.get(i).setOnLongClickListener(this);
+                    }
+                } else {
+                    channelClickType = ADD;
+                }
+            }
+
+            private boolean isLayout = true;
+
+            private AnimatorSet animatorSet = new AnimatorSet();
 
             @Override
             protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -358,6 +392,26 @@ public class ChannelGridView extends ScrollView {
                 if (isLayout) {
                     for (int i = 0; i < channelViews.size(); i++) {
                         View childAt = channelViews.get(i);
+//            switch (i % CHANNEL_COLUMN) {
+//                case 0:
+//                    childAt.layout(0, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN), childWidth,
+//                            (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                case 1:
+//                    childAt.layout(childWidth + horizontalSpacing, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN),
+//                            childWidth * 2 + horizontalSpacing, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                case 2:
+//                    childAt.layout(childWidth * 2 + horizontalSpacing * 2, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN),
+//                            childWidth * 3 + horizontalSpacing * 2, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                case 3:
+//                    childAt.layout(childWidth * 3 + horizontalSpacing * 3, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN),
+//                            childWidth * 4 + horizontalSpacing * 3, (childHeight + verticalSpacing) * (i / CHANNEL_COLUMN) + childHeight);
+//                    break;
+//                default:
+//                    break;
+//            }
                         int flag = i % channelColumn;
                         childAt.layout(channelWidth * flag + horizontalSpacing * flag + channelLeftPadding,
                                 (channelHeight + verticalSpacing) * (i / channelColumn) + channelTopPadding,
@@ -366,104 +420,6 @@ public class ChannelGridView extends ScrollView {
                         channelPoints.put(i, new PointF(childAt.getX(), childAt.getY()));
                     }
                     isLayout = false;
-                }
-            }
-
-            /**
-             * 获取点击频道之上的view高度
-             *
-             * @param index
-             * @return
-             */
-            public int getClickChannelTopHeight(int index) {
-                int recommendTitleViewsHeight = 0, recommendChannelViewsHeight = 0;
-                for (int i = 0; i < index + 1; i++) {
-                    recommendTitleViewsHeight += recommendTitleViews.get(i).getMeasuredHeight();
-                }
-                for (int i = 0; i < index; i++) {
-                    recommendChannelViewsHeight += recommendChannelViews.get(i).getMeasuredHeight();
-                }
-                return recommendTitleViewsHeight + recommendChannelViewsHeight;
-            }
-
-            /**
-             * 复制频道
-             */
-            public TextView copyChannel(View v) {
-                TextView textView = new TextView(mContext);
-                textView.setText(((TextView) v).getText());
-                textView.setGravity(Gravity.CENTER);
-                return textView;
-            }
-        }
-
-        private class MyChannelView extends ChannelView implements OnTouchListener, OnLongClickListener {
-            /**
-             * 固定频道的颜色
-             */
-            private final String FIXED_CHANNEL = "#CCCCCC";
-
-            /**
-             * 频道普通点击
-             */
-            private final int NORMAL = 0X00;
-
-            /**
-             * 点击删除频道
-             */
-            private final int DELETE = 0x01;
-
-            private int channelClickType = NORMAL;
-
-            public MyChannelView(Context context) {
-                this(context, null);
-            }
-
-            public MyChannelView(Context context, @Nullable AttributeSet attrs) {
-                this(context, attrs, 0);
-            }
-
-            public MyChannelView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
-                super(context, attrs, defStyleAttr);
-                init();
-            }
-
-            private void init() {
-                if (channelColumn <= 0) {
-                    channelColumn = 1;
-                }
-                if (channelLeftPadding <= 0) {
-                    channelLeftPadding = 0;
-                }
-                if (channelTopPadding <= 0) {
-                    channelTopPadding = 0;
-                }
-                if (channelRightPadding <= 0) {
-                    channelRightPadding = 0;
-                }
-                if (channelBottomPadding <= 0) {
-                    channelBottomPadding = 0;
-                }
-                addView();
-            }
-
-            private void addView() {
-                if (myChannelContent != null) {
-                    for (int i = 0; i < myChannelContent.length; i++) {
-                        TextView textView = new TextView(mContext);
-                        textView.setTag(0);
-                        textView.setText(myChannelContent[i]);
-                        textView.setGravity(Gravity.CENTER);
-                        textView.setBackgroundResource(R.drawable.bg_channel_tag_normal);
-                        if (i <= channelFixedToPosition) {
-                            textView.setTextColor(Color.parseColor(FIXED_CHANNEL));
-                        }
-                        textView.setOnClickListener(this);
-                        textView.setOnTouchListener(this);
-                        textView.setOnLongClickListener(this);
-                        addView(textView);
-                        channelViews.put(i, textView);
-                    }
                 }
             }
 
@@ -482,11 +438,36 @@ public class ChannelGridView extends ScrollView {
                 return false;
             }
 
+            /**
+             * 频道普通点击
+             */
+            private final int NORMAL = 0X00;
+
+            /**
+             * 点击增加频道
+             */
+            private final int ADD = 0X01;
+
+            /**
+             * 点击删除频道
+             */
+            private final int DELETE = 0x02;
+
+            private int channelClickType = NORMAL;
+
             @Override
             public void onClick(final View v) {
                 if (channelClickType == NORMAL) {
                     if (onChannelItemClickListener != null) {
                         onChannelItemClickListener.channelItemClick(channelViews.indexOfValue(v), ((TextView) v).getText().toString());
+                    }
+                } else if (channelClickType == ADD) {
+                    //推荐频道中，要做相应的移除一个view后的过渡动画
+                    if (!animatorSet.isRunning()) {
+                        //在myChannel需要操作的事情
+                        clickAddChannel(v);
+                        //在recommendChannel需要操作的事情
+                        animateClickChannel(v);
                     }
                 } else if (channelClickType == DELETE) {
                     if (channelViews.indexOfValue(v) > channelFixedToPosition && !animatorSet.isRunning()) {
@@ -571,9 +552,11 @@ public class ChannelGridView extends ScrollView {
                     copyChannel.setText(((TextView) v).getText());
                     copyChannel.setGravity(Gravity.CENTER);
                     copyChannel.setBackgroundResource(R.drawable.bg_channel_tag_focused);
+//                copyChannel.measure(MeasureSpec.makeMeasureSpec(channelWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(channelHeight, MeasureSpec.EXACTLY));
+//                copyChannel.layout(v.getLeft(), v.getTop(), v.getRight(), v.getBottom());
                     copyChannel.setX(v.getX());
-                    copyChannel.setY(v.getY() - getMeasuredHeight() - getRecommendViewsHeight());
-                    ChannelGrid.this.addView(copyChannel);
+                    copyChannel.setY(v.getY() - getMeasuredHeight() - view2.getMeasuredHeight() - recommendChannel.getMeasuredHeight());
+                    ChannelGridView2.ChannelGrid.this.addView(copyChannel);
                     selectPosition = vPosition = channelViews.indexOfValue(v);
                     selectChannelX = channelPoints.get(vPosition).x;
                     selectChannelY = channelPoints.get(vPosition).y;
@@ -584,19 +567,6 @@ public class ChannelGridView extends ScrollView {
                     }
                 }
                 return true;
-            }
-
-            /**
-             * 获取所有推荐频道的高度
-             *
-             * @return
-             */
-            private int getRecommendViewsHeight() {
-                int height = 0;
-                for (int i = 0; i < recommendChannelViews.size(); i++) {
-                    height += recommendChannelViews.get(i).getMeasuredHeight() + recommendTitleViews.get(i).getMeasuredHeight();
-                }
-                return height;
             }
 
             float downX, downY;
@@ -670,7 +640,7 @@ public class ChannelGridView extends ScrollView {
                 channelViews.put(selectPosition, v);
                 v.animate().x(selectChannelX).y(selectChannelY).setDuration(DURATION_TIME);
                 ViewPropertyAnimator animate = copyChannel.animate();
-                animate.x(selectChannelX).y(selectChannelY + myChannelTitleView.getMeasuredHeight()).setDuration(DURATION_TIME);
+                animate.x(selectChannelX).y(selectChannelY + view1.getMeasuredHeight()).setDuration(DURATION_TIME);
                 animate.setListener(new Animator.AnimatorListener() {
                     @Override
                     public void onAnimationStart(Animator animation) {
@@ -679,7 +649,7 @@ public class ChannelGridView extends ScrollView {
 
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        ChannelGrid.this.removeView(copyChannel);
+                        ChannelGridView2.ChannelGrid.this.removeView(copyChannel);
                     }
 
                     @Override
@@ -704,9 +674,16 @@ public class ChannelGridView extends ScrollView {
                 }
             }
 
-            private void addChannel(final View v, final int index) {
+            /**
+             * 是否动态的增加高度
+             * <p>当添加频道时，如果新增一行，动态的增加高度</p>
+             */
+            private boolean isDynamicAddHeight;
+
+            private int dynamicHeight;
+
+            private void addChannel(final View v) {
                 final TextView newAddChannel = copyChannel(v);
-                newAddChannel.setTag(index);
                 newAddChannel.setOnTouchListener(this);
                 newAddChannel.setOnLongClickListener(this);
                 newAddChannel.setOnClickListener(this);
@@ -717,9 +694,6 @@ public class ChannelGridView extends ScrollView {
                     newAddChannel.setBackgroundResource(R.drawable.bg_channel_tag_normal);
                 }
                 channelViews.put(channelViews.size(), newAddChannel);
-                if (channelViews.indexOfValue(newAddChannel) <= channelFixedToPosition) {
-                    newAddChannel.setTextColor(Color.parseColor(FIXED_CHANNEL));
-                }
                 if (channelViews.size() % channelColumn == 1) {
                     isDynamicAddHeight = true;
                 }
@@ -785,16 +759,16 @@ public class ChannelGridView extends ScrollView {
                 copyOutChannel.setBackgroundResource(R.drawable.bg_channel_tag_normal);
                 copyOutChannel.setLayoutParams(new LayoutParams(channelWidth, channelHeight));
                 copyOutChannel.setX(v.getX());
-                copyOutChannel.setY(v.getY() + myChannelTitleView.getMeasuredHeight() + myChannelView.getMeasuredHeight() + getClickChannelTopHeight(index));
-                ChannelGrid.this.addView(copyOutChannel);
+                copyOutChannel.setY(v.getY() + view1.getMeasuredHeight() + myChannel.getMeasuredHeight() + view2.getMeasuredHeight());
+                ChannelGridView2.ChannelGrid.this.addView(copyOutChannel);
                 ViewPropertyAnimator animate = copyOutChannel.animate();
                 if ((channelPoints.size() - 1) % channelColumn == 0) {
                     animate.x(channelPoints.get(0).x)
-                            .y(channelPoints.get(channelPoints.size() - 1).y + myChannelTitleView.getMeasuredHeight())
+                            .y(channelPoints.get(channelPoints.size() - 1).y + view1.getMeasuredHeight())
                             .setDuration(DURATION_TIME);
                 } else {
                     animate.x(channelPoints.get(channelPoints.size() - 1).x)
-                            .y(channelPoints.get(channelPoints.size() - 1).y + myChannelTitleView.getMeasuredHeight())
+                            .y(channelPoints.get(channelPoints.size() - 1).y + view1.getMeasuredHeight())
                             .setDuration(DURATION_TIME);
 
                 }
@@ -803,7 +777,8 @@ public class ChannelGridView extends ScrollView {
                         @Override
                         public void onAnimationUpdate(ValueAnimator animation) {
                             if ((float) animation.getAnimatedValue() > 0) {
-                                recommendChannelViews.get(index).removeView(v);
+//                            v.setVisibility(INVISIBLE);
+                                recommendChannel.removeView(v);
                             }
                         }
                     });
@@ -812,14 +787,15 @@ public class ChannelGridView extends ScrollView {
                     @Override
                     public void onAnimationStart(Animator animation) {
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                            recommendChannelViews.get(index).removeView(v);
+//                        v.setVisibility(INVISIBLE);
+                            recommendChannel.removeView(v);
                         }
                     }
 
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         newAddChannel.setVisibility(VISIBLE);
-                        ChannelGrid.this.removeView(copyOutChannel);
+                        ChannelGridView2.ChannelGrid.this.removeView(copyOutChannel);
                     }
 
                     @Override
@@ -833,155 +809,24 @@ public class ChannelGridView extends ScrollView {
                     }
                 });
             }
-        }
-
-        /**
-         * 其他频道
-         */
-        private class RecommendChannelView extends ChannelView {
-            private String[] recommendContent;
 
             /**
-             * 第index个推荐频道模块
+             * 复制频道
              */
-            private int index;
-
-            public RecommendChannelView(Context context) {
-                this(context, null);
-            }
-
-            public RecommendChannelView(Context context, @Nullable AttributeSet attrs) {
-                this(context, attrs, 0);
-            }
-
-            public RecommendChannelView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
-                this(context, attrs, defStyleAttr, null, 0);
-            }
-
-            public RecommendChannelView(Context context, AttributeSet attrs, int defStyleAttr, @Nullable String[] recommendContent, int index) {
-                super(context, attrs, defStyleAttr);
-                this.recommendContent = recommendContent;
-                this.index = index;
-                init();
-            }
-
-            private void init() {
-                if (channelColumn <= 0) {
-                    channelColumn = 1;
-                }
-                if (channelLeftPadding <= 0) {
-                    channelLeftPadding = 0;
-                }
-                if (channelTopPadding <= 0) {
-                    channelTopPadding = 0;
-                }
-                if (channelRightPadding <= 0) {
-                    channelRightPadding = 0;
-                }
-                if (channelBottomPadding <= 0) {
-                    channelBottomPadding = 0;
-                }
-                addView();
-            }
-
-            private void addView() {
-                if (recommendContent != null) {
-                    for (int i = 0; i < recommendContent.length; i++) {
-                        TextView textView = new TextView(mContext);
-                        textView.setText(recommendContent[i]);
-                        textView.setTag(index);
-                        textView.setGravity(Gravity.CENTER);
-                        textView.setBackgroundResource(R.drawable.bg_channel_tag_normal);
-                        textView.setOnClickListener(this);
-                        addView(textView);
-                        channelViews.put(i, textView);
-                    }
-                }
-            }
-
-            @Override
-            public void onClick(final View v) {
-                //推荐频道中，要做相应的移除一个view后的过渡动画
-                if (!animatorSet.isRunning()) {
-                    //在myChannel需要操作的事情
-                    clickAddChannel(v, (int) v.getTag());
-                    //在recommendChannel中需要操作的事情
-                    animateClickChannel(v);
-                }
+            private TextView copyChannel(View v) {
+                TextView textView = new TextView(mContext);
+                textView.setText(((TextView) v).getText());
+                textView.setGravity(Gravity.CENTER);
+                return textView;
             }
 
             /**
-             * 点击频道（myChannel和recommendChannel）时在本频道发生得动作
-             *
-             * @param v
-             */
-            private void animateClickChannel(final View v) {
-                int vPosition = channelViews.indexOfValue(v);
-                animatorSet = new AnimatorSet();
-                ObjectAnimator[] objectAnimators = new ObjectAnimator[(channelViews.size() - vPosition - 1) * 2];
-                if (objectAnimators.length > 0) {
-                    for (int i = vPosition; i < channelViews.size() - 1; i++) {
-                        ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(channelViews.get(i + 1), "X", channelPoints.get(i).x);
-                        ObjectAnimator objectAnimator1 = ObjectAnimator.ofFloat(channelViews.get(i + 1), "Y", channelPoints.get(i).y);
-                        objectAnimators[2 * (i - vPosition)] = objectAnimator;
-                        objectAnimators[2 * (i - vPosition) + 1] = objectAnimator1;
-                        channelViews.put(i, channelViews.get(i + 1));
-                    }
-                    animatorSet.playTogether(objectAnimators);
-                    animatorSet.setDuration(DURATION_TIME);
-                    animatorSet.start();
-                }
-                channelViews.removeAt(channelViews.size() - 1);
-                channelPoints.removeAt(channelPoints.size() - 1);
-                if (channelViews.size() % channelColumn == 0) {
-                    isDynamicAddHeight = true;
-                    ValueAnimator dynamicHeightAnimator;
-                    if (channelViews.size() == 0) {
-                        dynamicHeightAnimator = ObjectAnimator.ofInt(getMeasuredHeight(), getMeasuredHeight() - channelHeight);
-                    } else {
-                        dynamicHeightAnimator = ObjectAnimator.ofInt(getMeasuredHeight(), getMeasuredHeight() - channelHeight - verticalSpacing);
-                    }
-                    dynamicHeightAnimator.setDuration(DURATION_TIME);
-                    dynamicHeightAnimator.start();
-                    dynamicHeightAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                        @Override
-                        public void onAnimationUpdate(ValueAnimator animation) {
-                            dynamicHeight = (int) animation.getAnimatedValue();
-                            requestLayout();
-                        }
-                    });
-                    dynamicHeightAnimator.addListener(new Animator.AnimatorListener() {
-                        @Override
-                        public void onAnimationStart(Animator animation) {
-
-                        }
-
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            isDynamicAddHeight = false;
-                        }
-
-                        @Override
-                        public void onAnimationCancel(Animator animation) {
-
-                        }
-
-                        @Override
-                        public void onAnimationRepeat(Animator animation) {
-
-                        }
-                    });
-                }
-            }
-
-            /**
-             * 从我的频道中回收已选择的频道
+             * 删除我的频道
              *
              * @param v
              */
             private void recycleChannel(final View v) {
                 final TextView newAddChannel = copyChannel(v);
-                newAddChannel.setTag(index);
                 newAddChannel.setOnClickListener(this);
                 newAddChannel.layout(channelLeftPadding, channelTopPadding, channelLeftPadding + channelWidth, channelTopPadding + channelHeight);
                 newAddChannel.setVisibility(INVISIBLE);
@@ -1052,22 +897,22 @@ public class ChannelGridView extends ScrollView {
                 copyOutChannel.setBackgroundResource(R.drawable.bg_channel_tag_selected);
                 copyOutChannel.setLayoutParams(new LayoutParams(channelWidth, channelHeight));
                 copyOutChannel.setX(v.getX());
-                copyOutChannel.setY(v.getY() + myChannelTitleView.getMeasuredHeight());
-                ChannelGrid.this.addView(copyOutChannel);
+                copyOutChannel.setY(v.getY() + view1.getMeasuredHeight());
+                ChannelGridView2.ChannelGrid.this.addView(copyOutChannel);
                 ViewPropertyAnimator animate = copyOutChannel.animate();
-                if ((myChannelView.channelViews.size() - 1) % channelColumn == 0) {
-                    if (myChannelView.channelViews.size() != 1) {
+                if ((myChannel.channelViews.size() - 1) % channelColumn == 0) {
+                    if (myChannel.channelViews.size() != 1) {
                         animate.x(channelPoints.get(0).x)
-                                .y(channelPoints.get(0).y + myChannelTitleView.getMeasuredHeight() + myChannelView.getMeasuredHeight() + getClickChannelTopHeight(index) - verticalSpacing - channelHeight)
+                                .y(channelPoints.get(0).y + view1.getMeasuredHeight() + view2.getMeasuredHeight() + myChannel.getMeasuredHeight() - verticalSpacing - channelHeight)
                                 .setDuration(DURATION_TIME);
                     } else {
                         animate.x(channelPoints.get(0).x)
-                                .y(channelPoints.get(0).y + myChannelTitleView.getMeasuredHeight() + myChannelView.getMeasuredHeight() + getClickChannelTopHeight(index) - channelHeight)
+                                .y(channelPoints.get(0).y + view1.getMeasuredHeight() + view2.getMeasuredHeight() + myChannel.getMeasuredHeight() - channelHeight)
                                 .setDuration(DURATION_TIME);
                     }
                 } else {
                     animate.x(channelPoints.get(0).x)
-                            .y(channelPoints.get(0).y + myChannelTitleView.getMeasuredHeight() + myChannelView.getMeasuredHeight() + getClickChannelTopHeight(index))
+                            .y(channelPoints.get(0).y + view1.getMeasuredHeight() + view2.getMeasuredHeight() + myChannel.getMeasuredHeight())
                             .setDuration(DURATION_TIME);
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -1075,7 +920,8 @@ public class ChannelGridView extends ScrollView {
                         @Override
                         public void onAnimationUpdate(ValueAnimator animation) {
                             if ((float) animation.getAnimatedValue() > 0) {
-                                myChannelView.removeView(v);
+//                            v.setVisibility(INVISIBLE);
+                                myChannel.removeView(v);
                             }
                         }
                     });
@@ -1084,14 +930,15 @@ public class ChannelGridView extends ScrollView {
                     @Override
                     public void onAnimationStart(Animator animation) {
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                            myChannelView.removeView(v);
+//                        v.setVisibility(INVISIBLE);
+                            myChannel.removeView(v);
                         }
                     }
 
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         newAddChannel.setVisibility(VISIBLE);
-                        ChannelGrid.this.removeView(copyOutChannel);
+                        ChannelGridView2.ChannelGrid.this.removeView(copyOutChannel);
                     }
 
                     @Override
