@@ -8,28 +8,20 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.PointF;
-import android.os.Build;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.util.Log;
-import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewPropertyAnimator;
 import android.widget.GridLayout;
-import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class ChannelGridView4 extends ScrollView {
     private Context mContext;
@@ -37,32 +29,28 @@ public class ChannelGridView4 extends ScrollView {
     private int mDefStyleAttr;
     private Map<String, String[]> channelContents = new LinkedHashMap<>();
     private int channelFixedToPosition = -1;
-    private ChannelLayout channelGrid;
+    private ChannelView channelGrid;
 
     /**
      * 列数
      */
     private int channelColumn;
 
-    /**
-     * 频道宽
-     */
     private int channelWidth;
 
-    /**
-     * 频道高
-     */
     private int channelHeight;
 
-    /**
-     * 真个频道内边距
-     */
     private int channelPadding;
 
     /**
-     * 每个频道的间隔
+     * 水平方向上的间隔线
      */
-    private int channelSpacing;
+    private int horizontalSpacing;
+
+    /**
+     * 竖直方向上的间隔线
+     */
+    private int verticalSpacing;
 
     public ChannelGridView4(Context context) {
         this(context, null);
@@ -81,18 +69,22 @@ public class ChannelGridView4 extends ScrollView {
         channelHeight = (int) typedArray.getDimension(R.styleable.ChannelGridView4_channelHeight, 120);
         channelColumn = typedArray.getInteger(R.styleable.ChannelGridView4_channelColumn, 4);
         channelPadding = (int) typedArray.getDimension(R.styleable.ChannelGridView4_channelPadding, 0);
-        channelSpacing = (int) typedArray.getDimension(R.styleable.ChannelGridView4_channelSpacing, 0);
-        if (channelColumn <= 0) {
+        horizontalSpacing = (int) typedArray.getDimension(R.styleable.ChannelGridView4_horizontalSpacing, 0);
+        verticalSpacing = (int) typedArray.getDimension(R.styleable.ChannelGridView4_verticalSpacing, 0);
+        if (channelColumn < 1) {
             channelColumn = 1;
         }
-        if (channelHeight <= 0) {
+        if (channelHeight < 1) {
             channelHeight = 120;
         }
-        if (channelPadding <= 0) {
+        if (channelPadding < 0) {
             channelPadding = 0;
         }
-        if (channelSpacing <= 0) {
-            channelSpacing = 0;
+        if (horizontalSpacing < 0) {
+            horizontalSpacing = 0;
+        }
+        if (verticalSpacing < 0) {
+            verticalSpacing = 0;
         }
         typedArray.recycle();
     }
@@ -134,29 +126,30 @@ public class ChannelGridView4 extends ScrollView {
         return channels;
     }
 
-    private OnChannelItemClickListener onChannelItemClickListener;
+    private OnChannelListener onChannelListener;
 
     /**
      * 填充数据
      */
     public void inflateData() {
-        channelGrid = new ChannelLayout(mContext, mAttrs, mDefStyleAttr);
+        channelGrid = new ChannelView(mContext, mAttrs, mDefStyleAttr);
         addView(channelGrid);
     }
 
-    public interface OnChannelItemClickListener {
+    public interface OnChannelListener {
         void channelItemClick(int itemId, String channel);
+
+        void channelFinish(List<String> channels);
     }
 
-    public void setOnChannelItemClickListener(OnChannelItemClickListener onChannelItemClickListener) {
-        this.onChannelItemClickListener = onChannelItemClickListener;
+    public void setOnChannelItemClickListener(OnChannelListener onChannelListener) {
+        this.onChannelListener = onChannelListener;
     }
 
-    private boolean isLayout = true;
-
-    public AnimatorSet animatorSet = new AnimatorSet();
-
-    private class GridViewAttr {
+    /**
+     * 频道属性
+     */
+    private class ChannelAttr {
         static final int TITLE = 0x01;
         static final int CHANNEL = 0x02;
 
@@ -181,8 +174,8 @@ public class ChannelGridView4 extends ScrollView {
         private int belong = 1;
     }
 
-    private class ChannelLayout extends GridLayout implements OnTouchListener, OnLongClickListener, OnClickListener {
-        private static final int DURATION_TIME = 200;
+    private class ChannelView extends GridLayout implements OnTouchListener, OnLongClickListener, OnClickListener {
+        private final int DURATION_TIME = 200;
         /**
          * 固定频道的颜色
          */
@@ -200,43 +193,87 @@ public class ChannelGridView4 extends ScrollView {
 
         private int channelClickType = NORMAL;
 
-        public ChannelLayout(Context context) {
+        /**
+         * 是否重新布局
+         */
+        private boolean isAgainLayout = true;
+
+        public AnimatorSet animatorSet = new AnimatorSet();
+
+        /**
+         * 是否重新测量
+         */
+        private boolean isAgainMeasure = true;
+
+        /**
+         * 所有频道标题组
+         */
+        private List<View> channelTitleGroups = new ArrayList<>();
+
+        /**
+         * 所有频道组
+         */
+        private List<ArrayList<View>> channelGroups = new ArrayList<>();
+
+        /**
+         * 每组channel的行数
+         */
+        private int[] groupChannelColumns;
+
+        /**
+         * 所有channel组的高度
+         */
+        private int allChannelGroupsHeight;
+
+        private TextView tipEdit, tipFinish;
+
+        /**
+         * 动态高度
+         */
+        private int animateHeight;
+
+        /**
+         * 是否通过动画改变高度
+         */
+        private boolean isAnimateChangeHeight;
+
+        public ChannelView(Context context) {
             this(context, null);
         }
 
-        public ChannelLayout(Context context, @Nullable AttributeSet attrs) {
+        public ChannelView(Context context, @Nullable AttributeSet attrs) {
             this(context, attrs, 0);
         }
 
-        public ChannelLayout(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+        public ChannelView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
             super(context, attrs, defStyleAttr);
             init();
         }
 
-        /**
-         * 是否需要重新测量
-         */
-        private boolean isMeasure = true;
-
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            if (isMeasure) {
+            if (isAgainMeasure) {
                 int width = MeasureSpec.getSize(widthMeasureSpec);
                 if (!isAnimateChangeHeight) {
                     int height = 0;
-                    int everyChannelHeight = 0;
+                    int allChannelTitleHeight = 0;
                     for (int i = 0; i < getChildCount(); i++) {
                         View childAt = getChildAt(i);
-                        if (((GridViewAttr) childAt.getTag()).type == GridViewAttr.TITLE) {
-                            childAt.measure(MeasureSpec.makeMeasureSpec(width - (channelSpacing + channelPadding) * 2, MeasureSpec.EXACTLY), heightMeasureSpec);
-                            height += childAt.getMeasuredHeight();
-                        } else if (((GridViewAttr) childAt.getTag()).type == GridViewAttr.CHANNEL) {
-                            channelWidth = (width - channelSpacing * 2 * channelColumn - channelPadding * 2) / channelColumn;
+                        if (((ChannelAttr) childAt.getTag()).type == ChannelAttr.TITLE) {
+                            childAt.measure(MeasureSpec.makeMeasureSpec(width - channelPadding * 2, MeasureSpec.EXACTLY), heightMeasureSpec);
+                            allChannelTitleHeight += childAt.getMeasuredHeight();
+                        } else if (((ChannelAttr) childAt.getTag()).type == ChannelAttr.CHANNEL) {
+                            channelWidth = (width - verticalSpacing * (channelColumn * 2 - 2) - channelPadding * 2) / channelColumn;
                             childAt.measure(MeasureSpec.makeMeasureSpec(channelWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(channelHeight, MeasureSpec.EXACTLY));
-                            everyChannelHeight = childAt.getMeasuredHeight();
                         }
                     }
-                    height += allChannelColumns * everyChannelHeight;
+                    for (int groupChannelColumn : groupChannelColumns) {
+                        if (groupChannelColumn > 0) {
+                            height += channelHeight * groupChannelColumn + (groupChannelColumn * 2 - 2) * horizontalSpacing;
+                        }
+                    }
+                    allChannelGroupsHeight = height;
+                    height += channelPadding * 2 + allChannelTitleHeight;
                     setMeasuredDimension(width, height);
                 } else {
                     setMeasuredDimension(width, animateHeight);
@@ -246,14 +283,15 @@ public class ChannelGridView4 extends ScrollView {
 
         @Override
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-            if (isLayout) {
+            if (isAgainLayout) {
                 super.onLayout(changed, left, top, right, bottom);
                 for (int i = 0; i < getChildCount(); i++) {
                     View childAt = getChildAt(i);
-                    GridViewAttr tag = (GridViewAttr) childAt.getTag();
-                    tag.coordinate = new PointF(childAt.getX(), childAt.getY());
+                    ChannelAttr tag = (ChannelAttr) childAt.getTag();
+                    tag.coordinate.x = childAt.getX();
+                    tag.coordinate.y = childAt.getY();
                 }
-                isLayout = false;
+                isAgainLayout = false;
             }
         }
 
@@ -261,34 +299,20 @@ public class ChannelGridView4 extends ScrollView {
             setColumnCount(channelColumn);
             setAlignmentMode(ALIGN_BOUNDS);
             setPadding(channelPadding, channelPadding, channelPadding, channelPadding);
-            addView();
+            addChannelView();
         }
 
-        private List<View> channelTitleGroups = new ArrayList<>();
-        private List<ArrayList<View>> channelGroups = new ArrayList<>();
-
-        private int startRow;
-
-        /**
-         * 每组channel的行数
-         */
-        private int[] groupChannelColumns;
-
-        /**
-         * 所有频道组成的行数
-         */
-        private int allChannelColumns;
-
-        private TextView tipEdit, tipFinish;
-
-        private void addView() {
+        private void addChannelView() {
             if (channelContents != null) {
                 groupChannelColumns = new int[channelContents.size()];
                 int j = 0;
+                int startRow = 0;
                 for (String aKeySet : channelContents.keySet()) {
                     String[] channelContent = channelContents.get(aKeySet);
+                    if (channelContent == null) {
+                        channelContent = new String[]{};
+                    }
                     groupChannelColumns[j] = channelContent.length % channelColumn == 0 ? channelContent.length / channelColumn : channelContent.length / channelColumn + 1;
-                    allChannelColumns += groupChannelColumns[j];
                     if (j == 0) {
                         startRow = 0;
                     } else {
@@ -306,19 +330,22 @@ public class ChannelGridView4 extends ScrollView {
                         tipFinish.setVisibility(INVISIBLE);
                         tipFinish.setOnClickListener(this);
                     }
-                    GridViewAttr channelTitleAttr = new GridViewAttr();
-                    channelTitleAttr.type = GridViewAttr.TITLE;
+                    ChannelAttr channelTitleAttr = new ChannelAttr();
+                    channelTitleAttr.type = ChannelAttr.TITLE;
+                    channelTitleAttr.coordinate = new PointF();
                     view.setTag(channelTitleAttr);
                     TextView tvTitle = view.findViewById(R.id.tv_title);
                     tvTitle.setText(aKeySet);
                     addView(view, layoutParams);
                     channelTitleGroups.add(view);
-                    ArrayList<View> channelGroup = new ArrayList();
+                    ArrayList<View> channelGroup = new ArrayList<>();
+                    int remainder = channelContent.length % channelColumn;
                     for (int i = 0; i < channelContent.length; i++) {
                         TextView textView = new TextView(mContext);
-                        GridViewAttr channelAttr = new GridViewAttr();
-                        channelAttr.type = GridViewAttr.CHANNEL;
+                        ChannelAttr channelAttr = new ChannelAttr();
+                        channelAttr.type = ChannelAttr.CHANNEL;
                         channelAttr.groupIndex = j;
+                        channelAttr.coordinate = new PointF();
                         if (j != 0) {
                             channelAttr.belong = j;
                         }
@@ -333,7 +360,26 @@ public class ChannelGridView4 extends ScrollView {
                         textView.setOnTouchListener(this);
                         textView.setOnLongClickListener(this);
                         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-                        params.setMargins(channelSpacing, channelSpacing, channelSpacing, channelSpacing);
+                        int leftMargin = verticalSpacing, topMargin = horizontalSpacing, rightMargin = verticalSpacing, bottomMargin = horizontalSpacing;
+                        if (i % channelColumn == 0) {
+                            leftMargin = 0;
+                        }
+                        if ((i + 1) % channelColumn == 0) {
+                            rightMargin = 0;
+                        }
+                        if (i < channelColumn) {
+                            topMargin = 0;
+                        }
+                        if (remainder == 0) {
+                            if (i >= channelContent.length - channelColumn) {
+                                bottomMargin = 0;
+                            }
+                        } else {
+                            if (i >= channelContent.length - remainder) {
+                                bottomMargin = 0;
+                            }
+                        }
+                        params.setMargins(leftMargin, topMargin, rightMargin, bottomMargin);
                         addView(textView, params);
                         channelGroup.add(textView);
                     }
@@ -353,7 +399,7 @@ public class ChannelGridView4 extends ScrollView {
                 channelDrag(v, event);
             }
             if (event.getAction() == MotionEvent.ACTION_UP && isChannelLongClick) {
-                channelDragRelease(v);
+                channelDragUp(v);
             }
             return false;
         }
@@ -361,22 +407,52 @@ public class ChannelGridView4 extends ScrollView {
         @Override
         public void onClick(View v) {
             if (v == tipFinish) {
-                editChannelTip(false);
+                changeTip(false);
+                List<String> myChannels = new ArrayList<>();
+                for (View view : channelGroups.get(0)) {
+                    myChannels.add(((TextView) view).getText().toString());
+                }
+                if (onChannelListener != null) {
+                    onChannelListener.channelFinish(myChannels);
+                }
             } else {
-                GridViewAttr tag = (GridViewAttr) v.getTag();
+                ChannelAttr tag = (ChannelAttr) v.getTag();
                 ArrayList<View> channels = channelGroups.get(tag.groupIndex);
                 if (tag.groupIndex == 0) {
-                    if (channelClickType == DELETE) {//减少我的频道
+                    if (channelClickType == DELETE && channels.indexOf(v) > channelFixedToPosition) {//减少我的频道
                         forwardSort(v, channels);
                         deleteMyChannel(v);
                     } else if (channelClickType == NORMAL) {
-                        onChannelItemClickListener.channelItemClick(channels.indexOf(v), ((TextView) v).getText().toString());
+                        if (onChannelListener != null) {
+                            onChannelListener.channelItemClick(channels.indexOf(v), ((TextView) v).getText().toString());
+                        }
                     }
                 } else {//增加我的频道
                     forwardSort(v, channels);
                     addMyChannel(v);
                 }
             }
+        }
+
+        @Override
+        public boolean onLongClick(View v) {
+            v.bringToFront();
+            ChannelAttr tag = (ChannelAttr) v.getTag();
+            if (tag.groupIndex == 0) {
+                ArrayList<View> views = channelGroups.get(0);
+                int indexOf = views.indexOf(v);
+                if (indexOf > channelFixedToPosition) {
+                    for (int i = channelFixedToPosition + 1; i < views.size(); i++) {
+                        if (i == indexOf) {
+                            views.get(i).setBackgroundResource(R.drawable.bg_channel_tag_focused);
+                        } else {
+                            views.get(i).setBackgroundResource(R.drawable.bg_channel_tag_selected);
+                        }
+                    }
+                    changeTip(true);
+                }
+            }
+            return true;
         }
 
         /**
@@ -391,9 +467,9 @@ public class ChannelGridView4 extends ScrollView {
             if (indexOfValue != size - 1) {
                 for (int i = size - 1; i > indexOfValue; i--) {
                     View lastView = channels.get(i - 1);
-                    GridViewAttr lastViewTag = (GridViewAttr) lastView.getTag();
+                    ChannelAttr lastViewTag = (ChannelAttr) lastView.getTag();
                     View currentView = channels.get(i);
-                    GridViewAttr currentViewTag = (GridViewAttr) currentView.getTag();
+                    ChannelAttr currentViewTag = (ChannelAttr) currentView.getTag();
                     currentViewTag.coordinate = lastViewTag.coordinate;
                     currentView.animate().x(currentViewTag.coordinate.x).y(currentViewTag.coordinate.y).setDuration(DURATION_TIME);
                 }
@@ -407,28 +483,45 @@ public class ChannelGridView4 extends ScrollView {
          * @param v
          */
         private void addMyChannel(View v) {
-            GridViewAttr tag = (GridViewAttr) v.getTag();
+            if (channelClickType == DELETE) {
+                v.setBackgroundResource(R.drawable.bg_channel_tag_selected);
+            }
+            ChannelAttr tag = (ChannelAttr) v.getTag();
             ArrayList<View> channels = channelGroups.get(tag.groupIndex);
             ArrayList<View> myChannels = channelGroups.get(0);
-            View finalMyChannel = myChannels.get(myChannels.size() - 1);
-            View firstMyChannel = myChannels.get(0);
-            GridViewAttr finalMyChannelTag = (GridViewAttr) finalMyChannel.getTag();
-            GridViewAttr firstMyChannelTag = (GridViewAttr) firstMyChannel.getTag();
+            View finalMyChannel;
+            if (myChannels.size() == 0) {
+                finalMyChannel = channelTitleGroups.get(0);
+            } else {
+                finalMyChannel = myChannels.get(myChannels.size() - 1);
+            }
+            ChannelAttr finalMyChannelTag = (ChannelAttr) finalMyChannel.getTag();
             myChannels.add(myChannels.size(), v);
             channels.remove(v);
             animateChangeGridViewHeight();
-            if (myChannels.size() % channelColumn == 1) {
-                tag.coordinate = new PointF(firstMyChannelTag.coordinate.x, finalMyChannelTag.coordinate.y + channelHeight);
+            if (myChannels.size() % channelColumn == 1 || channelColumn == 1) {
+                if (myChannels.size() == 1) {
+                    tag.coordinate = new PointF(finalMyChannelTag.coordinate.x, finalMyChannelTag.coordinate.y + finalMyChannel.getMeasuredHeight());
+                    //我的频道多一行，下面的view往下移
+                    viewMove(1, channelHeight);
+                } else {
+                    ChannelAttr firstMyChannelTag = (ChannelAttr) myChannels.get(0).getTag();
+                    tag.coordinate = new PointF(firstMyChannelTag.coordinate.x, finalMyChannelTag.coordinate.y + channelHeight + horizontalSpacing * 2);
+                    //我的频道多一行，下面的view往下移
+                    viewMove(1, channelHeight + horizontalSpacing * 2);
+                }
                 v.animate().x(tag.coordinate.x).y(tag.coordinate.y).setDuration(DURATION_TIME);
-                //我的频道多一行，下面的view往下移
-                viewMove(1, channelHeight);
             } else {
-                tag.coordinate = new PointF(finalMyChannelTag.coordinate.x + channelWidth, finalMyChannelTag.coordinate.y);
+                tag.coordinate = new PointF(finalMyChannelTag.coordinate.x + channelWidth + verticalSpacing * 2, finalMyChannelTag.coordinate.y);
                 v.animate().x(tag.coordinate.x).y(tag.coordinate.y).setDuration(DURATION_TIME);
             }
             //该频道少一行，下面的view往上移
             if (channels.size() % channelColumn == 0) {
-                viewMove(tag.groupIndex + 1, -channelHeight);
+                if (channels.size() == 0) {
+                    viewMove(tag.groupIndex + 1, -channelHeight);
+                } else {
+                    viewMove(tag.groupIndex + 1, -channelHeight - horizontalSpacing * 2);
+                }
             }
             tag.groupIndex = 0;
         }
@@ -439,34 +532,49 @@ public class ChannelGridView4 extends ScrollView {
          * @param v
          */
         private void deleteMyChannel(View v) {
-            GridViewAttr tag = (GridViewAttr) v.getTag();
+            if (channelClickType == DELETE) {
+                v.setBackgroundResource(R.drawable.bg_channel_tag_normal);
+            }
+            ChannelAttr tag = (ChannelAttr) v.getTag();
             ArrayList<View> beLongChannels = channelGroups.get(tag.belong);
-            GridViewAttr arriveTag = (GridViewAttr) beLongChannels.get(0).getTag();
-            tag.coordinate = arriveTag.coordinate;
+            if (beLongChannels.size() == 0) {
+                tag.coordinate = new PointF(((ChannelAttr) channelTitleGroups.get(tag.belong).getTag()).coordinate.x, ((ChannelAttr) channelTitleGroups.get(tag.belong).getTag()).coordinate.y + channelTitleGroups.get(tag.belong).getMeasuredHeight());
+            } else {
+                ChannelAttr arriveTag = (ChannelAttr) beLongChannels.get(0).getTag();
+                tag.coordinate = arriveTag.coordinate;
+            }
             v.animate().x(tag.coordinate.x).y(tag.coordinate.y).setDuration(DURATION_TIME);
             beLongChannels.add(0, v);
             channelGroups.get(0).remove(v);
             animateChangeGridViewHeight();
             PointF newPointF;
-            GridViewAttr finalChannelViewTag = (GridViewAttr) beLongChannels.get(beLongChannels.size() - 1).getTag();
+            ChannelAttr finalChannelViewTag = (ChannelAttr) beLongChannels.get(beLongChannels.size() - 1).getTag();
             //这个地方要注意顺序
             if (channelGroups.get(0).size() % channelColumn == 0) {
                 //我的频道中少了一行，底下的所有view全都上移
-                viewMove(1, -channelHeight);
+                if (channelGroups.get(0).size() == 0) {
+                    viewMove(1, -channelHeight);
+                } else {
+                    viewMove(1, -channelHeight - horizontalSpacing * 2);
+                }
             }
             if (beLongChannels.size() % channelColumn == 1) {
                 //回收来频道中多了一行，底下的所有view全都下移
-                viewMove(tag.belong + 1, channelHeight);
-                newPointF = new PointF(arriveTag.coordinate.x, finalChannelViewTag.coordinate.y + channelHeight);
+                if (beLongChannels.size() == 1) {
+                    viewMove(tag.belong + 1, channelHeight);
+                } else {
+                    viewMove(tag.belong + 1, channelHeight + horizontalSpacing * 2);
+                }
+                newPointF = new PointF(tag.coordinate.x, finalChannelViewTag.coordinate.y + channelHeight + horizontalSpacing * 2);
             } else {
-                newPointF = new PointF(finalChannelViewTag.coordinate.x + channelWidth, finalChannelViewTag.coordinate.y);
+                newPointF = new PointF(finalChannelViewTag.coordinate.x + channelWidth + verticalSpacing * 2, finalChannelViewTag.coordinate.y);
             }
             for (int i = 1; i < beLongChannels.size(); i++) {
                 View currentView = beLongChannels.get(i);
-                GridViewAttr currentViewTag = (GridViewAttr) currentView.getTag();
+                ChannelAttr currentViewTag = (ChannelAttr) currentView.getTag();
                 if (i < beLongChannels.size() - 1) {
                     View nextView = beLongChannels.get(i + 1);
-                    GridViewAttr nextViewTag = (GridViewAttr) nextView.getTag();
+                    ChannelAttr nextViewTag = (ChannelAttr) nextView.getTag();
                     currentViewTag.coordinate = nextViewTag.coordinate;
                 } else {
                     currentViewTag.coordinate = newPointF;
@@ -476,21 +584,23 @@ public class ChannelGridView4 extends ScrollView {
             tag.groupIndex = tag.belong;
         }
 
-        private int animateHeight;
-        private boolean isAnimateChangeHeight;
-
         /**
-         * 重新计算行数变化后的gridview高度并用动画改变
+         * 行数变化后的gridview高度并用动画改变
          */
         private void animateChangeGridViewHeight() {
-            int newAllChannelColumns = 0;
+            int newAllChannelGroupsHeight = 0;
             for (int i = 0; i < channelGroups.size(); i++) {
                 ArrayList<View> channels = channelGroups.get(i);
-                newAllChannelColumns += channels.size() % channelColumn == 0 ? channels.size() / channelColumn : channels.size() / channelColumn + 1;
+                groupChannelColumns[i] = channels.size() % channelColumn == 0 ? channels.size() / channelColumn : channels.size() / channelColumn + 1;
             }
-            final int changeHeight = (newAllChannelColumns - allChannelColumns) * channelHeight;
+            for (int groupChannelColumn : groupChannelColumns) {
+                if (groupChannelColumn > 0) {
+                    newAllChannelGroupsHeight += channelHeight * groupChannelColumn + (groupChannelColumn * 2 - 2) * horizontalSpacing;
+                }
+            }
+            int changeHeight = newAllChannelGroupsHeight - allChannelGroupsHeight;
             if (changeHeight != 0) {
-                allChannelColumns = newAllChannelColumns;
+                allChannelGroupsHeight = newAllChannelGroupsHeight;
                 ValueAnimator valueAnimator = ValueAnimator.ofInt(getMeasuredHeight(), getMeasuredHeight() + changeHeight);
                 valueAnimator.setDuration(DURATION_TIME);
                 valueAnimator.start();
@@ -532,7 +642,7 @@ public class ChannelGridView4 extends ScrollView {
         private void viewMove(int position, int offSetY) {
             for (int i = position; i < channelTitleGroups.size(); i++) {
                 View view = channelTitleGroups.get(i);
-                GridViewAttr tag = (GridViewAttr) view.getTag();
+                ChannelAttr tag = (ChannelAttr) view.getTag();
                 tag.coordinate = new PointF(tag.coordinate.x, tag.coordinate.y + offSetY);
                 view.animate().x(tag.coordinate.x).y(tag.coordinate.y).setDuration(DURATION_TIME);
             }
@@ -540,21 +650,11 @@ public class ChannelGridView4 extends ScrollView {
                 ArrayList<View> otherChannels = channelGroups.get(i);
                 for (int j = 0; j < otherChannels.size(); j++) {
                     View view = otherChannels.get(j);
-                    GridViewAttr tag = (GridViewAttr) view.getTag();
+                    ChannelAttr tag = (ChannelAttr) view.getTag();
                     tag.coordinate = new PointF(tag.coordinate.x, tag.coordinate.y + offSetY);
                     view.animate().x(tag.coordinate.x).y(tag.coordinate.y).setDuration(DURATION_TIME);
                 }
             }
-        }
-
-        @Override
-        public boolean onLongClick(View v) {
-            v.bringToFront();
-            GridViewAttr tag = (GridViewAttr) v.getTag();
-            if (tag.groupIndex == 0) {
-                editChannelTip(true);
-            }
-            return true;
         }
 
         float downX, downY;
@@ -571,12 +671,12 @@ public class ChannelGridView4 extends ScrollView {
             downX = moveX;
             downY = moveY;
             ArrayList<View> myChannels = channelGroups.get(0);
-            GridViewAttr vTag = (GridViewAttr) v.getTag();
+            ChannelAttr vTag = (ChannelAttr) v.getTag();
             int vIndex = myChannels.indexOf(v);
             for (int i = 0; i < myChannels.size(); i++) {
                 if (i > channelFixedToPosition && i != vIndex) {
                     View iChannel = myChannels.get(i);
-                    GridViewAttr iChannelTag = (GridViewAttr) iChannel.getTag();
+                    ChannelAttr iChannelTag = (ChannelAttr) iChannel.getTag();
                     int x1 = (int) iChannelTag.coordinate.x;
                     int y1 = (int) iChannelTag.coordinate.y;
                     int sqrt = (int) Math.sqrt((v.getX() - x1) * (v.getX() - x1) + (v.getY() - y1) * (v.getY() - y1));
@@ -587,8 +687,8 @@ public class ChannelGridView4 extends ScrollView {
                         if (i < vIndex) {
                             for (int j = i; j < vIndex; j++) {
                                 TextView view = (TextView) myChannels.get(j);
-                                GridViewAttr viewTag = (GridViewAttr) view.getTag();
-                                GridViewAttr nextGridViewAttr = ((GridViewAttr) myChannels.get(j + 1).getTag());
+                                ChannelAttr viewTag = (ChannelAttr) view.getTag();
+                                ChannelAttr nextGridViewAttr = ((ChannelAttr) myChannels.get(j + 1).getTag());
                                 viewTag.coordinate = nextGridViewAttr.coordinate;
                                 objectAnimators[2 * (j - i)] = ObjectAnimator.ofFloat(view, "X", viewTag.coordinate.x);
                                 objectAnimators[2 * (j - i) + 1] = ObjectAnimator.ofFloat(view, "Y", viewTag.coordinate.y);
@@ -596,8 +696,8 @@ public class ChannelGridView4 extends ScrollView {
                         } else if (i > vIndex) {
                             for (int j = i; j > vIndex; j--) {
                                 TextView view = (TextView) myChannels.get(j);
-                                GridViewAttr viewTag = (GridViewAttr) view.getTag();
-                                GridViewAttr preGridViewAttr = ((GridViewAttr) myChannels.get(j - 1).getTag());
+                                ChannelAttr viewTag = (ChannelAttr) view.getTag();
+                                ChannelAttr preGridViewAttr = ((ChannelAttr) myChannels.get(j - 1).getTag());
                                 viewTag.coordinate = preGridViewAttr.coordinate;
                                 objectAnimators[2 * (j - vIndex - 1)] = ObjectAnimator.ofFloat(view, "X", viewTag.coordinate.x);
                                 objectAnimators[2 * (j - vIndex - 1) + 1] = ObjectAnimator.ofFloat(view, "Y", viewTag.coordinate.y);
@@ -605,7 +705,7 @@ public class ChannelGridView4 extends ScrollView {
                         }
                         animatorSet.playTogether(objectAnimators);
                         animatorSet.setDuration(DURATION_TIME);
-                        isMeasure = false;
+                        isAgainMeasure = false;
                         animatorSet.start();
                         vTag.coordinate = tempPoint;
                         myChannels.remove(v);
@@ -617,29 +717,30 @@ public class ChannelGridView4 extends ScrollView {
         }
 
         /**
-         * 频道拖动释放
+         * 频道拖动抬起
          *
          * @param v
          */
-        private void channelDragRelease(View v) {
-            isMeasure = true;
+        private void channelDragUp(View v) {
+            isAgainMeasure = true;
             isChannelLongClick = false;
-            GridViewAttr vTag = (GridViewAttr) v.getTag();
+            ChannelAttr vTag = (ChannelAttr) v.getTag();
             v.animate().x(vTag.coordinate.x).y(vTag.coordinate.y).setDuration(DURATION_TIME);
+            v.setBackgroundResource(R.drawable.bg_channel_tag_selected);
         }
 
-        private void editChannelTip(boolean state) {
+        /**
+         * 更改提示语
+         *
+         * @param state
+         */
+        private void changeTip(boolean state) {
             ArrayList<View> views = channelGroups.get(0);
             if (state) {
                 tipFinish.setVisibility(VISIBLE);
                 tipEdit.setVisibility(INVISIBLE);
                 channelClickType = DELETE;
                 isChannelLongClick = true;
-                for (int i = 0; i < views.size(); i++) {
-                    if (i > channelFixedToPosition) {
-                        views.get(i).setBackgroundResource(R.drawable.bg_channel_tag_selected);
-                    }
-                }
             } else {
                 tipFinish.setVisibility(INVISIBLE);
                 tipEdit.setVisibility(VISIBLE);
@@ -653,5 +754,4 @@ public class ChannelGridView4 extends ScrollView {
             }
         }
     }
-
 }
