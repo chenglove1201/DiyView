@@ -2,18 +2,20 @@ package com.chenglib.view.refresh;
 
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.support.annotation.NonNull;
+import android.support.v4.view.NestedScrollingChildHelper;
 import android.support.v4.view.NestedScrollingParent;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.View;
-import android.widget.LinearLayout;
+import android.view.ViewGroup;
 
 /**
  * Created by cheng on 2018/3/26.
  */
 
-public class RefreshRecycleView extends LinearLayout implements NestedScrollingParent, OnFootViewClickListener {
+public class RefreshRecycleView extends ViewGroup implements NestedScrollingParent, OnFootViewClickListener {
     private int mTotalUnconsumed, mTotalUnconsumed2;
     private Context mContext;
     /**
@@ -95,6 +97,8 @@ public class RefreshRecycleView extends LinearLayout implements NestedScrollingP
 
     private int dragAction = DRAG_ACTION_NULL;
 
+    private NestedScrollingChildHelper mNestedScrollingChildHelper;
+
     public RefreshRecycleView(Context context) {
         this(context, null);
     }
@@ -113,7 +117,7 @@ public class RefreshRecycleView extends LinearLayout implements NestedScrollingP
     }
 
     private void init() {
-        setOrientation(VERTICAL);
+        mNestedScrollingChildHelper = new NestedScrollingChildHelper(this);
         refreshViewHeight = dp2px(mContext, REFRESH_VIEW_HEIGHT_DP);
         startRefreshHeightHead = dp2px(mContext, REFRESH_VIEW_HEIGHT_DP + 20);
         startLoadHeightFoot = refreshViewHeight;
@@ -121,13 +125,6 @@ public class RefreshRecycleView extends LinearLayout implements NestedScrollingP
 
     public RecyclerView getRecycleView() {
         return recyclerView;
-    }
-
-    /**
-     * dp转px
-     */
-    private int dp2px(Context context, float dpValue) {
-        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dpValue, context.getResources().getDisplayMetrics());
     }
 
     @Override
@@ -152,20 +149,84 @@ public class RefreshRecycleView extends LinearLayout implements NestedScrollingP
     }
 
     @Override
-    public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        recyclerView.layout(l, t, r, b);
+    }
+
+    @Override
+    public boolean onStartNestedScroll(@NonNull View child, @NonNull View target, int nestedScrollAxes) {
         return true;
     }
 
     @Override
-    public void onNestedScrollAccepted(View child, View target, int axes) {
-        super.onNestedScrollAccepted(child, target, axes);
+    public void onNestedScrollAccepted(@NonNull View child, @NonNull View target, int axes) {
         mTotalUnconsumed = 0;
         mTotalUnconsumed2 = 0;
     }
 
     @Override
-    public void onStopNestedScroll(View child) {
-        super.onStopNestedScroll(child);
+    public boolean onNestedPreFling(@NonNull View target, float velocityX,
+                                    float velocityY) {
+        return dispatchNestedPreFling(velocityX, velocityY);
+    }
+
+    @Override
+    public boolean onNestedFling(@NonNull View target, float velocityX, float velocityY,
+                                 boolean consumed) {
+        return dispatchNestedFling(velocityX, velocityY, consumed);
+    }
+
+    @Override
+    public boolean dispatchNestedPreFling(float velocityX, float velocityY) {
+        return mNestedScrollingChildHelper.dispatchNestedPreFling(velocityX, velocityY);
+    }
+
+    @Override
+    public boolean dispatchNestedFling(float velocityX, float velocityY, boolean consumed) {
+        return mNestedScrollingChildHelper.dispatchNestedFling(velocityX, velocityY, consumed);
+    }
+
+    @Override
+    public void onNestedPreScroll(@NonNull View target, int dx, int dy, @NonNull int[] consumed) {
+        if (dy > 0 && mTotalUnconsumed > 0) {
+            if (dy > mTotalUnconsumed) {
+                consumed[1] = dy - mTotalUnconsumed;
+                mTotalUnconsumed = 0;
+                finishParentDrag();
+            } else {
+                mTotalUnconsumed -= dy;
+                consumed[1] = dy;
+            }
+            onPullDownBack(dy);
+        }
+        if (dy < 0 && mTotalUnconsumed2 < 0) {
+            if (dy < mTotalUnconsumed2) {
+                consumed[1] = mTotalUnconsumed2 - dy;
+                mTotalUnconsumed2 = 0;
+                finishParentDrag();
+            } else {
+                mTotalUnconsumed2 -= dy;
+                consumed[1] = dy;
+            }
+            onPullUpBack(dy);
+        }
+    }
+
+    @Override
+    public void onNestedScroll(@NonNull View target, int dxConsumed, int dyConsumed, int dxUnconsumed,
+                               int dyUnconsumed) {
+        if (dyUnconsumed < 0 && !refreshing) {
+            mTotalUnconsumed += -dyUnconsumed;
+            onPullDown(dyUnconsumed);
+        }
+        if (dyUnconsumed > 0 && !loading) {
+            mTotalUnconsumed2 += -dyUnconsumed;
+            onPullUp(dyUnconsumed);
+        }
+    }
+
+    @Override
+    public void onStopNestedScroll(@NonNull View child) {
         if (mTotalUnconsumed > 0 && !refreshing) {
             release();
             mTotalUnconsumed = 0;
@@ -294,45 +355,6 @@ public class RefreshRecycleView extends LinearLayout implements NestedScrollingP
      */
     public boolean isLoading() {
         return loading;
-    }
-
-    @Override
-    public void onNestedScroll(View target, int dxConsumed, int dyConsumed, int dxUnconsumed,
-                               int dyUnconsumed) {
-        if (dyUnconsumed < 0 && !refreshing) {
-            mTotalUnconsumed += -dyUnconsumed;
-            onPullDown(dyUnconsumed);
-        }
-        if (dyUnconsumed > 0 && !loading) {
-            mTotalUnconsumed2 += -dyUnconsumed;
-            onPullUp(dyUnconsumed);
-        }
-    }
-
-    @Override
-    public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
-        if (dy > 0 && mTotalUnconsumed > 0) {
-            if (dy > mTotalUnconsumed) {
-                consumed[1] = dy - mTotalUnconsumed;
-                mTotalUnconsumed = 0;
-                finishParentDrag();
-            } else {
-                mTotalUnconsumed -= dy;
-                consumed[1] = dy;
-            }
-            onPullDownBack(dy);
-        }
-        if (dy < 0 && mTotalUnconsumed2 < 0) {
-            if (dy < mTotalUnconsumed2) {
-                consumed[1] = mTotalUnconsumed2 - dy;
-                mTotalUnconsumed2 = 0;
-                finishParentDrag();
-            } else {
-                mTotalUnconsumed2 -= dy;
-                consumed[1] = dy;
-            }
-            onPullUpBack(dy);
-        }
     }
 
     /**
@@ -514,4 +536,10 @@ public class RefreshRecycleView extends LinearLayout implements NestedScrollingP
         adapter.setOnFootViewClickListener(this);
     }
 
+    /**
+     * dp转px
+     */
+    private int dp2px(Context context, float dpValue) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dpValue, context.getResources().getDisplayMetrics());
+    }
 }
